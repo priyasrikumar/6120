@@ -26,13 +26,13 @@ let mycfg (file : string) =
        | ("functions", fns) -> 
          (match fns with 
           | `List funcs -> List.iter funcs ~f:(fun instr -> 
-                   (match instr with 
-                    | `Assoc ins -> List.iter ins ~f:(fun inz -> 
-                        (match inz with 
-                         | ("instrs", _) as instrs -> let blocks = blocker instrs in 
-                           List.iter blocks ~f:(fun b -> to_channel stdout (`Assoc [b]))
-                         | _ -> ()))
-                    | _ -> failwith "invalid program: list")) 
-          | _ -> failwith "invalid program: insts") 
-       | _ -> failwith "invalid program: functions"))
-  | _-> failwith "invalid program: funcs"
+              (match instr with 
+               | `Assoc ins -> List.iter ins ~f:(fun inz -> 
+                   (match inz with 
+                    | ("instrs", _) as instrs -> let blocks = blocker instrs in 
+                      List.iter blocks ~f:(fun b -> to_channel stdout (`Assoc [b]))
+                    | _ -> ()))
+               | _ -> failwith "invalid program: instructions not found")) 
+          | _ -> failwith "invalid program: not a list of instructions") 
+       | _ -> failwith "invalid program structure: functions not found"))
+  | _-> failwith "invalid program structure: not a list of fns"

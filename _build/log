@@ -1,10 +1,10 @@
 # dune build
 # OCAMLPARAM: unset
 # Workspace root: /home/priya/Documents/FA20/6120/mybril
-$ /usr/bin/nproc > /tmp/dunee747b3.output 2> /dev/null
+$ /usr/bin/nproc > /tmp/dune3b3114.output 2> /dev/null
 # Auto-detected concurrency: 8
 # disable binary cache
-$ /home/priya/.opam/default/bin/ocamlc.opt -config > /tmp/dunec35682.output
+$ /home/priya/.opam/default/bin/ocamlc.opt -config > /tmp/dunebee8db.output
 # Dune context:
 #  { name = "default"
 #  ; kind = "default"
