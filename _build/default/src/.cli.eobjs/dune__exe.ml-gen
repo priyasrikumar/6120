@@ -1,0 +1,5 @@
+(** @canonical Dune__exe.Cli *)
+module Cli = Dune__exe__Cli
+
+(** @canonical Dune__exe.Extract *)
+module Extract = Dune__exe__Extract

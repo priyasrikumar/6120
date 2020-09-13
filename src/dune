@@ -1,0 +1,5 @@
+(executable
+(name cli)
+(libraries core yojson)
+(preprocess
+  (pps ppx_let)))
