@@ -1,4 +1,4 @@
-build/
+_build/
 book/
 node_modules/
 yarn.lock
