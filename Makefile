@@ -4,7 +4,7 @@ build:
 		dune build 
 
 run: build
-		dune exec ./_build/default/mybril/src/cli.exe
+		./_build/default/src/cli.exe $(file)
 
 clean: 
 		dune clean
