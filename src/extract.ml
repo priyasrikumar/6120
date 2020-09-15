@@ -1,7 +1,11 @@
 open Core
 open Yojson.Basic
 
-(* let block_tbl = Hashtbl.create(module String)*)
+let block_map blocks = 
+  let _out = ref [] in 
+  List.iter blocks ~f:(fun block ->
+      match block with 
+      | _ -> failwith "foo")
 
 let terminators = ["br"; "jmp"; "ret"]
 
@@ -19,7 +23,6 @@ let blocker body =
 
 let mycfg (file : string) = 
   let program = from_file file in 
-  (* let () = to_channel stdout program in *)
   match program with 
   | `Assoc fs -> List.iter fs ~f:(fun fn ->
       (match fn with
@@ -30,7 +33,7 @@ let mycfg (file : string) =
                | `Assoc ins -> List.iter ins ~f:(fun inz -> 
                    (match inz with 
                     | ("instrs", _) as instrs -> let blocks = blocker instrs in 
-                      List.iter blocks ~f:(fun b -> to_channel stdout (`Assoc [b]))
+                      List.iter blocks ~f:(fun b -> Printf.fprintf stdout ("%s\n") (to_string (snd b)))
                     | _ -> ()))
                | _ -> failwith "invalid program: instructions not found")) 
           | _ -> failwith "invalid program: not a list of instructions") 
