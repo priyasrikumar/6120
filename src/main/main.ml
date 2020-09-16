@@ -1,6 +1,6 @@
 open Core
 
-let run path = Analyze.count path
+let run _path = ()
 
 let command = 
   let open Command.Let_syntax in

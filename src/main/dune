@@ -1,0 +1,4 @@
+(executable
+(name main)
+(libraries core yojson cfg bril)
+(preprocess (pps ppx_let)))
