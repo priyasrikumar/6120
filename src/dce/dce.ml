@@ -95,7 +95,12 @@ let make_funcs name block_map used_vars cfg funcs =
       let block', is_deleted' = Hashtbl.find_exn block_map lbl |>
                                 filter_instrs used_vars
       in
-      is_deleted := !is_deleted || is_deleted'; block')
+      is_deleted := !is_deleted || is_deleted';
+      Hashtbl.update block_map lbl ~f:(fun k ->
+        match k with
+        | Some _ -> block'
+        | None -> invalid_arg (Printf.sprintf "label %s should be in block map" lbl));
+      block')
   in
   let func = Hashtbl.find_exn funcs name in 
   { func with instrs = instrs' }, !is_deleted
@@ -105,12 +110,13 @@ let global_elim_instrs blocks block_map cfg prog =
   let funcs = to_hashtbl prog' in 
   let is_processed = ref false in 
   let block_vars_map = instrs_to_eliminate blocks block_map funcs in 
-  let new_blocks = List.map block_vars_map ~f:(fun (name, used_vars) ->
+  let new_funcs = List.map block_vars_map ~f:(fun (name, used_vars) ->
       let (func', is_processed') = make_funcs name block_map used_vars cfg funcs
       in
       is_processed := !is_processed || is_processed'; func')
   in
-  new_blocks, !is_processed
+  let new_blocks = Hashtbl.to_alist block_map in 
+  new_funcs, new_blocks, !is_processed
 
 let local_elim_instrs instrs =
   let is_deleted = ref false in
@@ -175,9 +181,9 @@ let dce prog blocks cfg =
   let rec fix_global prog blocks stop = 
     if stop then prog
     else
-      let blocks' = fix_local blocks false in
-      let block_map = to_hashtbl blocks' in
-      let prog', is_changed = global_elim_instrs blocks' block_map cfg prog in
-      fix_global prog' blocks' (not is_changed)
+      let block_map = to_hashtbl blocks in
+      let prog', blocks', is_changed = global_elim_instrs blocks block_map cfg prog in
+      let blocks'' = fix_local blocks' false in
+      fix_global prog' blocks'' (not is_changed)
   in
   fix_global prog blocks false
