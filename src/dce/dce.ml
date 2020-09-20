@@ -6,7 +6,8 @@ let to_hashtbl assoc_ls = Hashtbl.of_alist_exn (module String) assoc_ls
 
 let print_table table = Hashtbl.iteri table ~f:(fun ~key ~data -> print_endline (Printf.sprintf "%s %b" key data)) 
 
-let used_vars_in_instrs used_vars instrs = List.fold_left ~init:None instrs 
+let used_vars_in_instrs used_vars instrs =
+  List.fold_left ~init:None instrs 
     ~f:(fun _ instr ->
       match instr with 
       | Label _ -> None
@@ -14,22 +15,22 @@ let used_vars_in_instrs used_vars instrs = List.fold_left ~init:None instrs
           Hashtbl.update used_vars dst ~f:(function _ -> false);
           None
       | Binop (dst, _, _, arg1, arg2) ->
+          Hashtbl.update used_vars dst ~f:(function _ -> false);
           Hashtbl.update used_vars arg1 ~f:(function _ -> true); 
           Hashtbl.update used_vars arg2 ~f:(function _ -> true); 
-          Hashtbl.update used_vars dst ~f:(function _ -> false);
           None
       | Unop (dst, _, _, arg) ->
-          Hashtbl.update used_vars arg ~f:(function _ -> true); 
           Hashtbl.update used_vars dst ~f:(function _ -> false);
+          Hashtbl.update used_vars arg ~f:(function _ -> true); 
           None
       | Jmp (label) -> Some [label]
       | Br (arg, label1, label2) ->
           Hashtbl.update used_vars arg ~f:(function _ -> true);
           Some [label1; label2]
       | Call (Some (dst), _, _, Some (args)) ->
+          Hashtbl.update used_vars dst ~f:(function _ -> false); 
           List.iter args 
             ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true));
-          Hashtbl.update used_vars dst ~f:(function _ -> false); 
           None
       | Call (Some (dst), _, _, None) ->
           Hashtbl.update used_vars dst ~f:(function _ -> false); None
@@ -41,8 +42,8 @@ let used_vars_in_instrs used_vars instrs = List.fold_left ~init:None instrs
       | Ret (Some (arg)) ->
           Hashtbl.update used_vars arg ~f:(function _ -> true);
           None
-      | Nop -> None
       | Ret (None) -> None
+      | Nop -> None
       | Print (args) ->
           List.iter args ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true)); 
           None)
@@ -99,7 +100,7 @@ let make_funcs name block_map used_vars cfg funcs =
   let func = Hashtbl.find_exn funcs name in 
   { func with instrs = instrs' }, !is_deleted
 
-let eliminate_instrs blocks block_map cfg prog =
+let global_elim_instrs blocks block_map cfg prog =
   let prog' = List.map prog ~f:(fun func -> (func.name, func)) in
   let funcs = to_hashtbl prog' in 
   let is_processed = ref false in 
@@ -111,12 +112,72 @@ let eliminate_instrs blocks block_map cfg prog =
   in
   new_blocks, !is_processed
 
-let dce prog blocks cfg = 
-  let rec fix prog stop = 
+let local_elim_instrs instrs =
+  let is_deleted = ref false in
+  let last_def = Hashtbl.create (module String) in
+  let remove_idxs = Hashtbl.create (module Int) in
+  List.iteri instrs ~f:(fun i instr ->
+    let uses, def =
+      match instr with
+      | Label _ -> [], None
+      | Cst (dst, _, _) -> [], Some (dst)
+      | Binop (dst, _, _, arg1, arg2) -> [arg1; arg2], Some (dst)
+      | Unop (dst, _, _, arg) -> [arg], Some (dst)
+      | Jmp _ -> [], None
+      | Br (dst, _, _) -> [], Some (dst)
+      | Call (Some (dst), _, _, Some (args)) -> args, Some (dst)
+      | Call (Some (dst), _, _, None) -> [], Some (dst)
+      | Call (None, _, _, Some (args)) -> args, None
+      | Call (None, _, _, None) -> [], None
+      | Ret (Some (arg)) -> [arg], None
+      | Ret (None) -> [], None
+      | Nop -> [], None
+      | Print (args) -> args, None
+    in
+    (* remove uses *)
+    List.iter uses ~f:(Hashtbl.remove last_def);
+    (* process defs *)
+    match def with
+    | Some v -> begin
+        if Hashtbl.mem last_def v then begin
+          let i' = Hashtbl.find_exn last_def v in
+          Hashtbl.add_exn remove_idxs ~key:i' ~data:();
+          Hashtbl.remove last_def v;
+          is_deleted := true
+        end;
+        Hashtbl.add_exn last_def ~key:v ~data:i;
+      end
+    | None -> ()
+  );
+  let instrs' = List.filter_mapi instrs ~f:(fun i instr ->
+    if Hashtbl.mem remove_idxs i then None
+    else Some instr)
+  in
+  instrs', !is_deleted
+
+let local_elim_blocks blocks = 
+  let is_processed = ref false in
+  let blocks' = List.map blocks ~f:(fun (name,block) ->
+    let block', is_processed' = local_elim_instrs block in
+    is_processed := !is_processed || is_processed';
+    (name,block')
+  )
+  in
+  blocks', !is_processed 
+
+let dce prog blocks cfg =
+  let rec fix_local blocks stop =
+    if stop then blocks
+    else
+      let blocks', is_changed = local_elim_blocks blocks in
+      fix_local blocks' (not is_changed)
+  in 
+  let rec fix_global prog blocks stop = 
     if stop then prog
     else
-      let block_map = to_hashtbl blocks in
-      let prog', _is_processed = eliminate_instrs blocks block_map cfg prog in
-      fix prog' true
+      let blocks' = fix_local blocks false in
+      let block_map = to_hashtbl blocks' in
+      let prog', is_changed = global_elim_instrs blocks' block_map cfg prog in
+      fix_global prog' blocks' (not is_changed)
   in
-  fix prog false
+  fix_global prog blocks false
