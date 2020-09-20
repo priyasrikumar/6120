@@ -1,50 +1,122 @@
-open Bril 
+open Types.Bril_types
 open Core
+open Cfg
 
-let block_map blocks = Sequence.of_list blocks |> Sequence.to_seq |> Stdlib.Hashtbl.of_seq 
+let to_hashtbl assoc_ls = Hashtbl.of_alist_exn (module String) assoc_ls
 
-let tdce blocks _block_map _cfg funcs = 
-  List.map blocks 
-    ~f:(fun (name, block) -> 
-        if Hashtbl.mem funcs name then 
-          let used_vars = Hashtbl.create (module String) in 
-          List.fold block ~init:None ~f:(fun _acc instr -> match instr with 
-              | Label _ -> None 
-              | Const (dest, _) -> begin
-                  ignore(Hashtbl.add used_vars ~key:(fst dest) ~data:false); 
-                  None end
-              | Binary (dest, _, arg1, arg2) -> begin
-                  ignore(Hashtbl.add used_vars ~key:arg1 ~data:true); 
-                  ignore(Hashtbl.add used_vars ~key:arg2 ~data:true); 
-                  ignore(Hashtbl.add used_vars ~key:(fst dest) ~data:false); 
-                  None end
-              | Unary (dest, _, arg) -> begin
-                  ignore(Hashtbl.add used_vars ~key:(fst dest) ~data:false);
-                  ignore(Hashtbl.add used_vars ~key:arg ~data:true); 
-                  None end
-              | Jmp label -> begin
-(*let jumped = Hashtbl.find cfg label in *)
-                  Some [label]
-                end
-              | Br (arg, label1, label2) -> begin
-                  ignore(Hashtbl.add used_vars ~key:arg ~data:true);
-                  Some [label1; label2]
-                end
-              | Call (dest, _func_name, args) -> begin 
-                  List.iter args 
-                    ~f:(fun arg -> ignore(Hashtbl.add used_vars ~key:arg ~data:true));
-                  ignore(Hashtbl.add used_vars ~key:(fst(Option.value ~default:("", IntType) dest)) ~data:false); 
-                  None
-                end
-              | Ret arg -> begin
-                  ignore(Hashtbl.add used_vars ~key:(Option.value ~default:"" arg) ~data:true); 
-                  None
-                end
-              | Print args -> begin
-                  List.iter args ~f:(fun arg -> ignore(Hashtbl.add used_vars ~key:arg ~data:true)); 
-                  Some args
-                end
-              | Nop -> None) else None)
-(* traverse CFG and end when code ends [ret],) else ()*)
+let print_table table = Hashtbl.iteri table ~f:(fun ~key ~data -> print_endline (Printf.sprintf "%s %b" key data)) 
 
-(* if Ret, return none, else we keep processing labels until we reach none *)
+let used_vars_in_instrs used_vars instrs = List.fold_left ~init:None instrs 
+    ~f:(fun _ instr ->
+      match instr with 
+      | Label _ -> None
+      | Cst (dst, _, _) ->
+          Hashtbl.update used_vars dst ~f:(function _ -> false);
+          None
+      | Binop (dst, _, _, arg1, arg2) ->
+          Hashtbl.update used_vars arg1 ~f:(function _ -> true); 
+          Hashtbl.update used_vars arg2 ~f:(function _ -> true); 
+          Hashtbl.update used_vars dst ~f:(function _ -> false);
+          None
+      | Unop (dst, _, _, arg) ->
+          Hashtbl.update used_vars arg ~f:(function _ -> true); 
+          Hashtbl.update used_vars dst ~f:(function _ -> false);
+          None
+      | Jmp (label) -> Some [label]
+      | Br (arg, label1, label2) ->
+          Hashtbl.update used_vars arg ~f:(function _ -> true);
+          Some [label1; label2]
+      | Call (Some (dst), _, _, Some (args)) ->
+          List.iter args 
+            ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true));
+          Hashtbl.update used_vars dst ~f:(function _ -> false); 
+          None
+      | Call (Some (dst), _, _, None) ->
+          Hashtbl.update used_vars dst ~f:(function _ -> false); None
+      | Call (None, _, _, Some (args)) ->
+          List.iter args 
+            ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true));
+          None
+      | Call (None, _, _, None) -> None
+      | Ret (Some (arg)) ->
+          Hashtbl.update used_vars arg ~f:(function _ -> true);
+          None
+      | Nop -> None
+      | Ret (None) -> None
+      | Print (args) ->
+          List.iter args ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true)); 
+          None)
+
+let instrs_to_eliminate blocks block_map funcs = 
+  List.filter_map blocks 
+    ~f:(fun (name, block) -> if Hashtbl.mem funcs name then begin
+           let used_vars = Hashtbl.create (module String) in 
+           let rec fix labels = match labels with 
+             | [] -> ()
+             | h::t -> let next = Hashtbl.find_exn block_map h in 
+               let continue = used_vars_in_instrs used_vars next in 
+               begin 
+                 match continue with 
+                 | None -> fix t
+                 | Some labels -> List.append t labels |> fix 
+               end 
+           in 
+           (match(used_vars_in_instrs used_vars block) with 
+            | None -> ()
+            | Some lst -> fix lst);
+           Some (name, used_vars)
+         end else None)
+
+let get_var instr =
+  match instr with
+  | Cst (d,_, _) | Binop (d, _, _,_ , _)
+  | Unop (d, _, _, _) | Call (Some d,_, _, _)-> Some (d)
+  | Label _| Jmp (_) | Br (_, _ , _ ) | Ret (_) | Print (_)
+  | Call (None, _, _, _)| Nop -> None
+
+let filter_instrs used_vars instrs =
+  let is_deleted = ref false in 
+  let instrs' = List.filter_map instrs ~f:(fun instr ->
+      match get_var instr with
+      | Some d -> 
+        if Hashtbl.find_exn used_vars d |> not then begin
+          is_deleted := true;
+          None
+        end else Some instr
+      | None -> Some instr)
+  in
+  (instrs', !is_deleted)
+
+let make_funcs name block_map used_vars cfg funcs =       
+  let traversed_lbls = traverse_cfg name cfg in
+  let is_deleted = ref false in
+  let instrs' = List.concat_map traversed_lbls ~f:(fun lbl -> 
+      let block', is_deleted' = Hashtbl.find_exn block_map lbl |>
+                                filter_instrs used_vars
+      in
+      is_deleted := !is_deleted || is_deleted'; block')
+  in
+  let func = Hashtbl.find_exn funcs name in 
+  { func with instrs = instrs' }, !is_deleted
+
+let eliminate_instrs blocks block_map cfg prog =
+  let prog' = List.map prog ~f:(fun func -> (func.name, func)) in
+  let funcs = to_hashtbl prog' in 
+  let is_processed = ref false in 
+  let block_vars_map = instrs_to_eliminate blocks block_map funcs in 
+  let new_blocks = List.map block_vars_map ~f:(fun (name, used_vars) ->
+      let (func', is_processed') = make_funcs name block_map used_vars cfg funcs
+      in
+      is_processed := !is_processed || is_processed'; func')
+  in
+  new_blocks, !is_processed
+
+let dce prog blocks cfg = 
+  let rec fix prog stop = 
+    if stop then prog
+    else
+      let block_map = to_hashtbl blocks in
+      let prog', _is_processed = eliminate_instrs blocks block_map cfg prog in
+      fix prog' true
+  in
+  fix prog false

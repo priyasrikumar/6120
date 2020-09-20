@@ -1,0 +1,4 @@
+(library
+(name json_processor)
+(libraries core types yojson)
+(preprocess (pps ppx_deriving.show ppx_deriving.ord)))

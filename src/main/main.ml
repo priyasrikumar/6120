@@ -1,20 +1,21 @@
 open Core
-open Yojson.Basic
+open Cfg
+open Dce
+open Json_processor
 
 let mems = ["alloc"; "free"; "store"; "load"; "ptradd"]
 
 let in_mems op = List.mem mems op ~equal:String.equal
 
-let count (file : string) = 
-  let functions = from_file file |> Util.member "functions" |> Util.to_list in
-  let ct = List.fold functions ~init:0 ~f:(fun ct f -> 
-      let ins = Util.member "instrs" f |> Util.to_list in 
-      List.fold ins ~init:ct ~f:(fun ct i-> match  
-                           Util.member "op" i with 
-                       | `String s when in_mems s -> ct + 1
-                       | _ -> ct)) in Printf.fprintf stdout "Saw %d memory instructions!" ct 
-
-let run path = count path
+let dce path = let prog = parse_prog path in
+  let blocks, cfg = extract_cfg prog in 
+  let prog' = dce prog blocks cfg in
+  let res = to_json prog' in
+  let new_path = Stdlib.String.sub path 0 (String.length path - 5) |>
+                 (fun x -> x^"_dce.json")
+  in
+  let oc = Out_channel.create new_path in
+  Yojson.Basic.to_channel oc res
 
 let command = 
   let open Command.Let_syntax in
@@ -29,7 +30,7 @@ let command =
         if help_flag || Base.List.is_empty files then
           print_endline (Lazy.force help_output)
         else
-          List.iter files ~f:run]
+          List.iter files ~f:dce]
 
 let () = Command.run command
 
