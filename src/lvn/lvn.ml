@@ -31,8 +31,9 @@ let lvn_block block =
       update_tbls (new_num, new_exp, arg);
       arg
     | Some (_,Un (Id,num),_) -> 
-        let _, _, arg' = Hashtbl.find_exn num_tbl num in
-        arg'
+        let (_, _, arg') as entry = Hashtbl.find_exn num_tbl num in
+        let entry' = Hashtbl.find_exn arg_tbl arg' in
+        if is_tbl_val_eq entry entry' then arg' else arg
     | Some (_,_,_) -> arg 
   in
   List.map block ~f:(fun instr ->

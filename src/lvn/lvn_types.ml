@@ -15,8 +15,8 @@ type lvn_exp =
 type tbl_val = lvn_num * lvn_exp * arg
 [@@deriving show]
 
-let is_tbl_val_eq (num1,exp1,_arg1) (num2,exp2,_arg2) =
-  num1 = num2 && exp1 = exp2 (* && arg1 = arg2 *)
+let is_tbl_val_eq (num1,exp1,arg1) (num2,exp2,arg2) =
+  num1 = num2 && exp1 = exp2 && arg1 = arg2
 
 let is_add_mul = function
   | Add | Mul -> true

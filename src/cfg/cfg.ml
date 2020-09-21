@@ -16,14 +16,14 @@ let make_blocks prog =
       ~f:(fun (name,curr_block) instr ->
           match instr with
           | Label lbl -> if List.is_empty curr_block then (lbl,curr_block) else begin
-              blocks := (name,List.rev curr_block) :: !blocks;
+              blocks := (name,List.rev (Jmp lbl :: curr_block)) :: !blocks;
               (lbl, []) end
           | Jmp _ | Br _ | Ret _ ->
             blocks := (name,List.rev (instr::curr_block)) :: !blocks;
             (List.length !blocks |> gen_block_name, [])
           | _ -> (name,instr::curr_block)
         ) |>
-                        (fun (name,block) -> blocks := (name,List.rev block)::!blocks)
+    (fun (name,block) -> blocks := (name,List.rev block)::!blocks)
   in
   List.iter prog ~f:(fun func -> get_blocks func);
   List.rev !blocks
@@ -50,7 +50,13 @@ let add_phantom_jmps blocks cfg =
       if List.is_empty block then 
         match List.nth blocks (i+1) with
         | None -> (name,block@[Ret None])
-        | Some (lbl, _) -> (name,block@[Jmp (Hashtbl.find_exn cfg lbl |> List.hd_exn)])
+        | Some (lbl, _) ->
+            let jmp =
+              match Hashtbl.find_exn cfg lbl with 
+              | [] -> [Ret None]
+              | hd :: _ -> [Jmp hd]
+            in
+            (name,block@jmp)
       else
         match List.length block - 1 |> List.nth block with
         | None -> (name,[Jmp (List.nth_exn blocks (i+1) |> fst)])
@@ -58,7 +64,13 @@ let add_phantom_jmps blocks cfg =
           | Jmp _ | Br _ | Ret _ -> (name,block)
           | _ -> match List.nth blocks (i+1) with
             | None -> (name,block@[Ret None])
-            | Some (lbl, _) -> (name,block@[Jmp (Hashtbl.find_exn cfg lbl |> List.hd_exn)])
+            | Some (lbl, _) ->
+                let jmp =
+                match Hashtbl.find_exn cfg lbl with 
+                | [] -> [Ret None]
+                | hd :: _ -> [Jmp hd]
+              in
+              (name,block@jmp)
     ) blocks
 
 let extract_cfg prog =
