@@ -76,19 +76,16 @@ let pipe opts =
   let _ =
     if opts.dce 
     then let res = dce prog blocks cfg_succ |> to_json in
-      let oc = stdout in 
-      Yojson.Basic.to_channel oc res 
+      Yojson.Basic.to_channel stdout res 
   in let _ = 
     if opts.lvn 
-      then let (res, _, _) = lvn prog blocks cfg_succ in 
-      let oc = stdout in    
-      Yojson.Basic.to_channel oc (res |> to_json) 
+      then let (res, _, _) = lvn prog blocks cfg_succ in  
+      Yojson.Basic.to_channel stdout (res |> to_json) 
   in let _ = 
      if opts.lvn_dce
       then let (prog', blocks', cfg_succ') = lvn prog blocks cfg_succ in
-      let res = dce prog' blocks' cfg_succ' in 
-      let oc = stdout in     
-      Yojson.Basic.to_channel oc (res |> to_json)
+      let res = dce prog' blocks' cfg_succ' in      
+      Yojson.Basic.to_channel stdout (res |> to_json)
   in ()
 
 let command = let open Command.Let_syntax in
