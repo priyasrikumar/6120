@@ -1,20 +1,20 @@
-(* open Sexplib0.Sexp_conv *)
+open Sexplib0.Sexp_conv
 
 (* for now lets not support pointer types *)
 (* also lets not support floating-point types *)
 type typ = 
     Int
   | Bool (*| Pointer of typ | Float of float*)
-[@@deriving show, eq]
+[@@deriving show, eq, sexp]
 
 type cst = 
     IntC of int
   | BoolC of bool
-[@@deriving show, eq]
+[@@deriving show, eq, sexp]
 
-type lbl = string [@@deriving show, eq]
-type arg = string [@@deriving show, eq]
-type dst = string [@@deriving show, eq]
+type lbl = string [@@deriving show, eq, sexp]
+type arg = string [@@deriving show, eq, sexp]
+type dst = string [@@deriving show, eq, sexp]
 
 (* binary operations *)
 type binop =
@@ -29,14 +29,15 @@ type binop =
   | Ge 
   | And  (* logical operations *)
   | Or
-[@@deriving show, eq]
+[@@deriving show, eq, compare, sexp]
+
 (*| Store | Ptradd*)
 
 (* unary operations *)
 type unop =
     Not
   | Id  (*| Alloc | Free | Load*)
-[@@deriving show, eq]
+[@@deriving show, eq, compare, sexp]
 
 (* types of instructions *)
 type instr =
@@ -50,7 +51,7 @@ type instr =
   | Ret of arg option
   | Print of arg list
   | Nop
-[@@deriving show, eq]
+[@@deriving show, eq, sexp]
 
 type func = {
   name : string ;
@@ -58,12 +59,12 @@ type func = {
   rtyp : typ option ;
   instrs : instr list ;
 }
-[@@deriving show, eq]
+[@@deriving show, eq, sexp]
 
 type prog = func list
-[@@deriving show, eq]
+[@@deriving show, eq, sexp]
 
 type blocks_list = (lbl * instr list) list
-[@@deriving show, eq]
+[@@deriving show, eq, sexp]
 type cfg_list = (lbl * lbl list) list
-[@@deriving show, eq]
+[@@deriving show, eq, sexp]
