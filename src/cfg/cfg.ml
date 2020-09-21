@@ -73,4 +73,4 @@ let traverse_cfg start_lbl cfg =
     let lbls = Hashtbl.find_exn cfg lbl in
     lbl::List.concat_map lbls ~f:(fun lbl -> collect_lbls lbl (lbl::acc))
   in
-  collect_lbls start_lbl [] |> List.rev |> List.stable_dedup
+  collect_lbls start_lbl [] |> List.stable_dedup
