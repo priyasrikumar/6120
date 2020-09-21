@@ -19,7 +19,7 @@ let make_blocks prog =
               blocks := (name,List.rev (Jmp lbl :: curr_block)) :: !blocks;
               (lbl, []) end *)
               blocks := (name,List.rev (Jmp lbl :: curr_block)) :: !blocks;
-              (lbl, [])
+              (lbl, [Label lbl])
           | Jmp _ | Br _ | Ret _ ->
             blocks := (name,List.rev (instr::curr_block)) :: !blocks;
             (List.length !blocks |> gen_block_name, [])

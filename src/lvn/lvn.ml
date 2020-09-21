@@ -179,9 +179,9 @@ let lvn_block block =
             let new_val = new_val () in
             update_tbls ~is_cst:true (new_val, new_exp, dst);
             Unop (dst, typ, Id, arg')
-        | Some (_, _, arg') ->
+        | Some (num, _, arg') ->
             let new_val = new_val () in
-            let new_exp = Un (Id, new_val) in
+            let new_exp = Un (Id, num) in
             update_tbls (new_val, new_exp, dst);
             Unop (dst, typ, Id, arg')
         (*| Some (entry) ->
@@ -238,15 +238,15 @@ let lvn_block block =
         instr
   )
 
-let lvn prog blocks cfg =
+let lvn prog blocks cfg_succ =
   let blocks' = List.map blocks ~f:(fun (name,instrs) -> (name,lvn_block instrs)) in
   let block_map = Hashtbl.of_alist_exn (module String) blocks' in
   let prog' = List.map prog ~f:(fun func ->
-    let lbls = Cfg.traverse_cfg func.name cfg in
+    let lbls = Cfg.traverse_cfg func.name cfg_succ in
     let instrs' = List.concat_map lbls ~f:(Hashtbl.find_exn block_map)(*(fun lbl ->
       if String.equal lbl func.name then Hashtbl.find_exn block_map lbl
       else Label (lbl) :: Hashtbl.find_exn block_map lbl)*)
     in
     { func with instrs = instrs' })
   in
-  prog', blocks', cfg 
+  prog', blocks', cfg_succ 
