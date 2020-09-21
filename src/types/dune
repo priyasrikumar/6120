@@ -1,4 +1,4 @@
 (library
 (name types)
 (libraries core)
-(preprocess (pps ppx_deriving.show ppx_deriving.ord ppx_deriving.eq ppx_jane)))
+(preprocess (pps ppx_compare ppx_sexp_conv ppx_deriving.show ppx_deriving.ord ppx_deriving.eq)))
