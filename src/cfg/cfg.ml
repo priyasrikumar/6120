@@ -1,4 +1,4 @@
-open Types.Bril_types
+open Types
 open Core
 
 type blocks_t = (lbl * instr list) list

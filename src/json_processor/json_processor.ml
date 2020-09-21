@@ -1,4 +1,4 @@
-open Types.Bril_types
+open Types
 open Yojson.Basic
 
 exception Not_yet_implemented of string
@@ -132,6 +132,10 @@ let parse_func json =
 
 let parse_prog fname = 
   let json = from_file fname in
+  Util.(json |> member "functions" |> to_list |> List.map parse_func)
+
+let parse_pipe = 
+  let json = from_channel stdin in
   Util.(json |> member "functions" |> to_list |> List.map parse_func)
 
 let rev_typ = function

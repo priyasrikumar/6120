@@ -1,5 +1,5 @@
 open Core
-open Types.Bril_types
+open Types
 
 type blocks_t = (lbl * instr list) list
 type cfg_t = (lbl, lbl list) Hashtbl.t

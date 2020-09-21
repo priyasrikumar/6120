@@ -1,2 +1,5 @@
-val lvn : Types.Bril_types.prog -> Cfg.blocks_t -> Cfg.cfg_t ->
-  (Types.Bril_types.prog * Cfg.blocks_t * Cfg.cfg_t)
+open Types 
+open Cfg
+
+val lvn : prog -> blocks_t -> cfg_t ->
+  (prog * blocks_t * cfg_t)

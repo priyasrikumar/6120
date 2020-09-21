@@ -1,10 +1,13 @@
 all: build
 
 build: 
-		dune build 
+	dune build
 
-run: build
-		./_build/default/src/main/main.exe $(file)
+run: build 
+	mv _build/default/src/main/main.exe 6120
+
+brench: run
+	brench brench.toml > results.csv
 
 clean: 
 		dune clean
