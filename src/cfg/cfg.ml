@@ -31,7 +31,7 @@ let make_blocks prog =
   List.rev !blocks
 (*List.filter (fun (name,block) -> block <> [])*)
 
-let make_cfg blocks =
+let make_cfg_succ blocks =
   List.mapi ~f:(fun i (name,block) ->
       if List.is_empty block then
         match List.nth blocks (i+1) with
@@ -46,6 +46,16 @@ let make_cfg blocks =
           | None -> (name,[])
           | Some (lbl, _) -> (name,[lbl])
     ) blocks
+
+let make_cfg_pred cfg_succ =
+  let pred_map = Hashtbl.create (module String) in
+  Hashtbl.iteri cfg_succ ~f:(fun ~key:k ~data:d ->
+    List.iter d ~f:(fun v ->
+      match Hashtbl.find cfg_succ v with
+      | None -> Hashtbl.update pred_map v ~f:(fun _ -> [k])
+      | Some (lbls) -> Hashtbl.update pred_map v ~f:(fun _ -> k::lbls))
+    );
+  pred_map
 
 let add_phantom_jmps blocks cfg =
   List.mapi ~f:(fun i (name,block) ->
@@ -77,10 +87,11 @@ let add_phantom_jmps blocks cfg =
 
 let extract_cfg prog =
   let blocks = make_blocks prog in
-  let cfg = make_cfg blocks in
-  let cfg_map = Hashtbl.of_alist_exn (module String) cfg in
-  let blocks = add_phantom_jmps blocks cfg_map in
-  blocks, cfg_map
+  let cfg_succ = make_cfg_succ blocks in
+  let cfg_succ_map = Hashtbl.of_alist_exn (module String) cfg_succ in
+  let cfg_pred_map = make_cfg_pred cfg_succ_map in
+  let blocks = add_phantom_jmps blocks cfg_succ_map in
+  blocks, cfg_succ_map, cfg_pred_map
 
 let traverse_cfg start_lbl cfg = 
   let rec collect_lbls lbl acc = 

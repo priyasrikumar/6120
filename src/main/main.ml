@@ -22,8 +22,8 @@ let dce (prog,blocks,cfg) = (*let prog = parse_prog path in*)
   Yojson.Basic.to_channel oc res*)
 
 let lvn path = let prog = parse_prog path in
-  let blocks, cfg = extract_cfg prog in 
-  let prog', blocks', cfg' = lvn prog blocks cfg in
+  let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
+  let prog', blocks', cfg' = lvn prog blocks cfg_succ in
   Format.printf "%a \n %a \n %a" Types.Bril_types.pp_blocks_list blocks
     Types.Bril_types.pp_blocks_list blocks'
     Types.Bril_types.pp_prog prog';
