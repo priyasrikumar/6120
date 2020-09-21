@@ -30,7 +30,9 @@ let lvn_block block =
       let new_exp = Un (Id, new_num) in
       update_tbls (new_num, new_exp, arg);
       arg
-    | Some (_,Un (Id,_),arg') -> arg'
+    | Some (_,Un (Id,num),_) -> 
+        let _, _, arg' = Hashtbl.find_exn num_tbl num in
+        arg'
     | Some (_,_,_) -> arg 
   in
   List.map block ~f:(fun instr ->
@@ -90,11 +92,19 @@ let lvn_block block =
             match l_expr, r_expr with 
             | CstI cst1, CstI cst2 -> begin
                 binop_to_fun op |> function
-                | Arith f ->
-                  let new_val = new_val () in
-                  let new_exp = CstI (f cst1 cst2) in
-                  update_tbls ~is_cst:true (new_val,new_exp,dst);
-                  Cst (dst, Int, IntC (f cst1 cst2))
+                | Arith f -> begin
+                  try 
+                    let new_val = new_val () in
+                    let new_exp = CstI (f cst1 cst2) in
+                    update_tbls ~is_cst:true (new_val,new_exp,dst);
+                    Cst (dst, Int, IntC (f cst1 cst2))
+                  with Division_by_zero -> begin
+                    let new_val = new_val () in
+                    let new_exp = Bin (op, l_val, r_val) in
+                    update_tbls (new_val,new_exp,dst);
+                    instr
+                  end
+                end
                 | Cmp f ->
                   let new_val = new_val () in
                   let new_exp = CstB (f cst1 cst2) in
@@ -152,11 +162,27 @@ let lvn_block block =
           let new_exp = Un (Id, right_val) in
           update_tbls (new_val, new_exp, dst);
           instr
-        | Some (_, Id (_,_), arg) ->
-
-        | Some (_, CstB (b), arg) ->
-        | Some (_, CstI (i), arg) ->
-
+        | Some (_, (CstI (_) as exp), _)
+        | Some (_, (CstB (_) as exp), _) ->
+          let new_val = new_val () in
+          update_tbls ~is_cst:true (new_val,exp,dst);
+          let typ', cst' =
+            match exp with
+            | CstI i -> Int, IntC (i)
+            | CstB b -> Bool, BoolC (b)
+            | _ -> Stdlib.invalid_arg "Should be unreachable."
+          in
+          Cst (dst, typ', cst')
+        | Some (_, (Un (Id, num) as new_exp), _) ->
+          let (_,_,arg') = Hashtbl.find_exn num_tbl num in
+          let new_val = new_val () in
+          update_tbls ~is_cst:true (new_val, new_exp, dst);
+          Unop (dst, typ, Id, arg')
+        | Some (_, _, arg') ->
+          let new_val = new_val () in
+          let new_exp = Un (Id, new_val) in
+          update_tbls (new_val, new_exp, dst);
+          Unop (dst, typ, Id, arg')
         (*| Some (entry) ->
           Format.printf "AA1: %a\n" pp_tbl_val entry;
           let (new_val, new_exp, new_var) = get_correct_arg arg entry in
@@ -205,5 +231,17 @@ let lvn_block block =
     | Nop -> instr
   )
 
-let lvn blocks =
-  List.map blocks ~f:(fun (name,instrs) -> (name,lvn_block instrs))
+type lbl_list = lbl list [@@deriving show]
+
+let lvn prog blocks cfg =
+  let blocks' = List.map blocks ~f:(fun (name,instrs) -> (name,lvn_block instrs)) in
+  let block_map = Hashtbl.of_alist_exn (module String) blocks' in
+  let prog' = List.map prog ~f:(fun func ->
+    let lbls = Cfg.traverse_cfg func.name cfg in
+    let instrs' = List.concat_map lbls ~f:(Hashtbl.find_exn block_map)(*(fun lbl ->
+      if String.equal lbl func.name then Hashtbl.find_exn block_map lbl
+      else Label (lbl) :: Hashtbl.find_exn block_map lbl)*)
+    in
+    { func with instrs = instrs' })
+  in
+  prog', blocks', cfg 
