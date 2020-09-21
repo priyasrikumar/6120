@@ -3,10 +3,12 @@
     {
       "instrs": [
         {
+          "args": [
+            "y"
+          ],
           "dest": "x",
-          "op": "const",
-          "type": "int",
-          "value": 4
+          "op": "id",
+          "type": "int"
         },
         {
           "args": [
