@@ -1,0 +1,84 @@
+{
+  "functions": [
+    {
+      "instrs": [
+        {
+          "dest": "a",
+          "op": "const",
+          "type": "int",
+          "value": 4
+        },
+        {
+          "dest": "b",
+          "op": "const",
+          "type": "int",
+          "value": 2
+        },
+        {
+          "args": [
+            "a",
+            "b"
+          ],
+          "dest": "sum1",
+          "op": "add",
+          "type": "int"
+        },
+        {
+          "args": [
+            "a",
+            "b"
+          ],
+          "dest": "sum2",
+          "op": "add",
+          "type": "int"
+        },
+        {
+          "args": [
+            "sum1",
+            "sum2"
+          ],
+          "dest": "prod1",
+          "op": "mul",
+          "type": "int"
+        },
+        {
+          "dest": "sum1",
+          "op": "const",
+          "type": "int",
+          "value": 0
+        },
+        {
+          "dest": "sum2",
+          "op": "const",
+          "type": "int",
+          "value": 0
+        },
+        {
+          "args": [
+            "a",
+            "b"
+          ],
+          "dest": "sum3",
+          "op": "add",
+          "type": "int"
+        },
+        {
+          "args": [
+            "sum3",
+            "sum3"
+          ],
+          "dest": "prod2",
+          "op": "mul",
+          "type": "int"
+        },
+        {
+          "args": [
+            "prod2"
+          ],
+          "op": "print"
+        }
+      ],
+      "name": "main"
+    }
+  ]
+}
