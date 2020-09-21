@@ -15,9 +15,11 @@ let make_blocks prog =
   let get_blocks func = List.fold_left ~init:(func.name,[]) func.instrs
       ~f:(fun (name,curr_block) instr ->
           match instr with
-          | Label lbl -> if List.is_empty curr_block then (lbl,curr_block) else begin
+          | Label lbl -> (* if List.is_empty curr_block then (lbl,curr_block) else begin
               blocks := (name,List.rev (Jmp lbl :: curr_block)) :: !blocks;
-              (lbl, []) end
+              (lbl, []) end *)
+              blocks := (name,List.rev (Jmp lbl :: curr_block)) :: !blocks;
+              (lbl, [])
           | Jmp _ | Br _ | Ret _ ->
             blocks := (name,List.rev (instr::curr_block)) :: !blocks;
             (List.length !blocks |> gen_block_name, [])
