@@ -4,7 +4,8 @@ open Core
 type blocks_t = (lbl * instr list) list
 type cfg_t = (lbl, lbl list) Hashtbl.t
 
-let gen_block_name d = Printf.sprintf "block%d" d
+let gen_block_name = Stdlib.Stream.from (fun d ->
+  Some (Printf.sprintf "mylbl_block_%d" d))
 
 let make_blocks prog =
   (*let funcs = List.to_seq prog |>
@@ -18,11 +19,11 @@ let make_blocks prog =
           | Label lbl -> (* if List.is_empty curr_block then (lbl,curr_block) else begin
               blocks := (name,List.rev (Jmp lbl :: curr_block)) :: !blocks;
               (lbl, []) end *)
-              blocks := (name,List.rev (Jmp lbl :: curr_block)) :: !blocks;
-              (lbl, [Label lbl])
+              blocks := (name,List.rev (Jmp ("lbl_"^lbl) :: curr_block)) :: !blocks;
+              (lbl, [Label ("lbl_"^lbl)])
           | Jmp _ | Br _ | Ret _ ->
             blocks := (name,List.rev (instr::curr_block)) :: !blocks;
-            (List.length !blocks |> gen_block_name, [])
+            (Stdlib.Stream.next gen_block_name, [])
           | _ -> (name,instr::curr_block)
         ) |>
     (fun (name,block) -> blocks := (name,List.rev block)::!blocks)
