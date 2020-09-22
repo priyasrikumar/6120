@@ -1,0 +1,4 @@
+(executable
+ (name brilc)
+ (libraries core yojson cfg json_processor dce lvn)
+ (preprocess (pps ppx_jane)))

@@ -1,5 +1,5 @@
 open Core 
-open Types.Bril_types
+open Types
 open Lvn_types
 
 let update_tbls (arg_tbl,num_tbl,exp_tbl) is_cst ((num,exp,var) as entry) = 

@@ -1,4 +1,0 @@
-(executable
-(name main)
-(libraries core yojson cfg types dce json_processor lvn)
-(preprocess (pps ppx_let)))

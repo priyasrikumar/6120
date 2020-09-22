@@ -1,4 +1,4 @@
-open Types.Bril_types
+open Types
 open Core
 open Sexplib0.Sexp_conv
 

@@ -1,10 +1,11 @@
-all: build
+_build/default/src/bin/brilc.exe: 
+		dune build src/bin/brilc.exe
 
-build: 
-		dune build 
-
-run: build
-		./_build/default/src/main/main.exe $(file)
+brilc: _build/default/src/bin/brilc.exe
+	cp $< $@
 
 clean: 
-		dune clean
+		rm -fr _build
+		rm brilc
+
+rebuild: clean brilc

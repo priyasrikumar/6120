@@ -24,12 +24,14 @@ opam install ocamlfind merlin yojson ppx_deriving
 # Compiling the Program
 
 ```
-make build
+make brilc
 ```
 
 # Running the Program
 
 ```
-make file=FILEPATH run
+cat <filepath> | python3 -m json.tool | ./brilc [lvn|dce|lvndce] | brili -p
 ```
-Currently prints out out the number of memory instructions in the program.
+
+May need tweaking depending on program args! 
+Brench outputs are in the `out/` directory. Generally, lvn + dce performs well, but some other things are not... :(
