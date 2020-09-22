@@ -24,7 +24,7 @@ opam install ocamlfind merlin yojson ppx_deriving
 # Compiling the Program
 
 ```
-make brilc
+make rebuild
 ```
 
 # Running the Program
