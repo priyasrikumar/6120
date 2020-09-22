@@ -6,9 +6,7 @@ open Dce
 open Lvn 
 
 module DCE = struct 
-  let spec = Command.Spec.(
-    empty 
-    +> anon (maybe ("file" %: string)))
+  let spec = Command.Spec.(empty)
 
   let run () = let prog = parse_in in 
       let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
@@ -22,9 +20,8 @@ let dce_cmd : Command.t =
     DCE.run 
 
 module LVN = struct 
-  let spec = Command.Spec.(
-    empty 
-    +> anon (maybe ("file" %: string)))
+  let spec = Command.Spec.(empty)
+
 
   let run () = let prog = parse_in in 
       let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
@@ -38,18 +35,9 @@ let lvn_cmd : Command.t =
     LVN.run 
 
 module LVN_DCE = struct 
-  let spec = Command.Spec.(
-    empty 
-    +> anon (maybe ("file" %: string)))
+  let spec = Command.Spec.(empty)
 
-  let run file () = 
-     
-    | None -> let prog = parse_in in 
-      let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
-      let prog', blocks', cfg_succ' = lvn prog blocks cfg_succ in 
-      let res = dce prog' blocks' cfg_succ' in 
-      to_channel stdout (res |> to_json) 
-    | Some file -> let prog = parse_prog file in 
+  let run () = let prog = parse_in in 
       let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
       let prog', blocks', cfg_succ' = lvn prog blocks cfg_succ in 
       let res = dce prog' blocks' cfg_succ' in 
