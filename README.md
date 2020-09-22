@@ -30,7 +30,7 @@ make rebuild
 # Running the Program
 
 ```
-cat <filepath> | python3 -m json.tool | ./brilc [lvn|dce|lvndce] | brili -p
+cat <filepath> | bril2json | ./brilc [lvn|dce|lvndce] | bril2txt | bril2json | brili -p
 ```
 
 May need tweaking depending on program args! 
