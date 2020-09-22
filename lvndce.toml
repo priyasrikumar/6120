@@ -4,12 +4,14 @@ benchmarks = './test/*/*.bril'
 [runs.baseline]
 pipeline = [
     "bril2json",
-    "brili -p {args}"
+    "brili -p"
 ]
 
 [runs.lvndce]
 pipeline = [
     "bril2json",
     "./brilc lvn-dce",
-    "brili -p {args}"
+    "bril2txt",
+    "bril2json",
+    "brili -p"
 ]

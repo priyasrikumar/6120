@@ -1,14 +1,14 @@
 benchmark,run,result
-commute,baseline,missing
-commute,lvn,missing
+commute,baseline,6
+commute,lvn,7
 reassign,baseline,3
 reassign,lvn,4
 redundant,baseline,6
 redundant,lvn,7
-idchain-nonlocal,baseline,missing
-idchain-nonlocal,lvn,missing
+idchain-nonlocal,baseline,6
+idchain-nonlocal,lvn,7
 nonlocal,baseline,7
-nonlocal,lvn,incorrect
+nonlocal,lvn,8
 divide-by-zero,baseline,missing
 divide-by-zero,lvn,missing
 clobber,baseline,10
@@ -19,5 +19,5 @@ redundant-dce,baseline,6
 redundant-dce,lvn,7
 clobber-fold,baseline,10
 clobber-fold,lvn,11
-idchain-prop,baseline,missing
-idchain-prop,lvn,missing
+idchain-prop,baseline,5
+idchain-prop,lvn,6

@@ -30,8 +30,6 @@ make rebuild
 # Running the Program
 
 ```
-cat <filepath> | bril2json | ./brilc [lvn|dce|lvndce] | bril2txt | bril2json | brili -p
+bril2json < <filepath> | ./brilc [lvn|dce|lvn-dce] | bril2txt | bril2json | brili -p
 ```
-
-May need tweaking depending on program args! 
-Brench outputs are in the `out/` directory. Generally, lvn + dce performs well, but some other things are not... :(
+Brench outputs are in the `out/` directory. We add some extraneous jumps sometimes, so we don't outperform the baseline in terms of dynamic instructions with DCE. But LVN or LVN + DCE works great! 
