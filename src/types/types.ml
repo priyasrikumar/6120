@@ -64,6 +64,8 @@ type func = {
 type prog = func list
 [@@deriving show, eq, sexp]
 
+type instr_list = instr list 
+[@@deriving show, eq]
 type blocks_list = (lbl * instr list) list
 [@@deriving show, eq, sexp]
 type cfg_list = (lbl * lbl list) list

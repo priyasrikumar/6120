@@ -26,6 +26,7 @@ opam install ocamlfind merlin yojson ppx_deriving
 ```
 make rebuild
 ```
+If prompted to delete brilc, enter `y`
 
 # Running the Program
 
@@ -33,3 +34,10 @@ make rebuild
 bril2json < <filepath> | ./brilc [lvn|dce|lvn-dce] | bril2txt | bril2json | brili -p
 ```
 Brench outputs are in the `out/` directory. We add some extraneous jumps sometimes, so we don't outperform the baseline in terms of dynamic instructions with DCE. But LVN or LVN + DCE works great! 
+
+# Running a Bril Program
+
+```
+make test-[dce|lvn|lvn-dce] F=<filepath>
+```
+If prompted to delete brilc, enter `y`
