@@ -40,7 +40,7 @@ module ReachingDomain : FwdDomain = struct
     Hashtbl.iteri t2 ~f:(fun ~key:var ~data:instrs -> 
         Hashtbl.update t3 var ~f:(function 
             | None -> instrs 
-            | Some instrs' -> List.append instrs' instrs));
+            | Some instrs' -> (List.append instrs' instrs) |> List.stable_dedup));
     t3
 
   let transfer instr t = match instr with 

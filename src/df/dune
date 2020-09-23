@@ -1,4 +1,4 @@
 (library
-(name dataflow)
+(name df)
 (libraries core types cfg)
 (preprocess (pps ppx_deriving.show ppx_deriving.eq)))

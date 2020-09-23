@@ -1,13 +1,12 @@
 open Core 
-open Dataflow_domain
+open Domain
 open Types 
 open Cfg
 
 module ForwardAnalysis (D : FwdDomain) = struct
-  type t = unit(*resultign type *)
-  
-  let print fmt instr t =
-    Format.fprintf fmt "%a : %a" pp_instr instr D.print t
+
+  let print (instr, d) =
+    Format.printf "INSTR %a : BLOCK %a\n" pp_instr instr D.print d
 
   let algo (blocks: blocks_t) cfg_pred =
     let blocks' = List.map blocks ~f:(fun (name,instrs) ->
@@ -18,7 +17,7 @@ module ForwardAnalysis (D : FwdDomain) = struct
     while Queue.is_empty worklist |> not do
       let (name,block) = Queue.dequeue_exn worklist in 
       let in_b = 
-        let preds = Hashtbl.find_exn cfg_pred name in
+        let preds = Option.value ~default:[] (Hashtbl.find cfg_pred name) in
         let out_blocks = List.map preds ~f:(Hashtbl.find_exn workhash) in
         let out_ps = List.map out_blocks ~f:(fun block ->
             match List.length block - 1 |> List.nth block with
@@ -33,8 +32,10 @@ module ForwardAnalysis (D : FwdDomain) = struct
           in_b_ref := D.transfer instr !in_b_ref;
           (instr,!in_b_ref))
       in 
+      let _, old_out_b = List.length block - 1 |> List.nth_exn block in 
       let out_b = !in_b_ref in 
       Hashtbl.update workhash name ~f:(fun _ -> out_block);
-      if D.leq out_b in_b |> not then Queue.enqueue worklist (name,out_block)
-    done; 
-end(* convert workhash to alist *)
+      List.iter out_block ~f:print;
+      if D.leq out_b old_out_b |> not then Queue.enqueue worklist (name,out_block)
+    done; List.map (Hashtbl.to_alist workhash) ~f:(fun (lbl, lst) -> lbl, List.map lst ~f:fst)
+end
