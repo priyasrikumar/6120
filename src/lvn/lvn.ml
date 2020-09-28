@@ -242,7 +242,7 @@ let lvn prog blocks cfg_succ =
   let blocks' = List.map blocks ~f:(fun (name,instrs) -> (name,lvn_block instrs)) in
   let block_map = Hashtbl.of_alist_exn (module String) blocks' in
   let prog' = List.map prog ~f:(fun func ->
-    let lbls = Cfg.traverse_cfg func.name cfg_succ in
+    let lbls = Cfg.traverse_cfg_succ func.name cfg_succ in
     let instrs' = List.concat_map lbls ~f:(Hashtbl.find_exn block_map)(*(fun lbl ->
       if String.equal lbl func.name then Hashtbl.find_exn block_map lbl
       else Label (lbl) :: Hashtbl.find_exn block_map lbl)*)

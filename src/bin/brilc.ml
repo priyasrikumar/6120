@@ -1,6 +1,5 @@
 open Core
 open Yojson.Basic
-open Types
 open Cfg 
 open Json_processor
 open Dce 
@@ -41,6 +40,7 @@ module LVN_DCE = struct
   let spec = Command.Spec.(empty)
 
   let run () = let prog = parse_in in 
+      Printf.printf "here";
       let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
       let prog', blocks', cfg_succ' = lvn prog blocks cfg_succ in 
       let res = dce prog' blocks' cfg_succ' in 
@@ -58,9 +58,9 @@ module Reach = struct
   module Res = ForwardAnalysis(ReachingDomain)
 
   let run () = let prog = parse_in in 
-      let blocks, _, cfg_pred = extract_cfg prog in
-       let res = Res.algo blocks cfg_pred in 
-      pp_blocks_list Format.std_formatter res;
+      let blocks, cfg_succ, cfg_pred = extract_cfg prog in
+      let res = Res.algo blocks cfg_succ cfg_pred in
+      Res.print Format.std_formatter res; to_channel stdout (prog |> to_json)
 end
 
 let reach_cmd : Command.t = 

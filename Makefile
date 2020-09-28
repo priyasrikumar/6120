@@ -17,3 +17,6 @@ test-lvn: rebuild
 
 test-lvn-dce: rebuild
 		bril2json < $F | ./brilc lvn-dce | bril2txt | bril2json | brili -p
+
+test-reach: rebuild
+		bril2json < $F | ./brilc reach | bril2txt | bril2json | brili -p

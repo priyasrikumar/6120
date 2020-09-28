@@ -48,25 +48,16 @@ let used_vars_in_instrs used_vars instrs =
           List.iter args ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true)); 
           None)
 
-let instrs_to_eliminate blocks block_map funcs = 
+let instrs_to_eliminate blocks block_map cfg_succ funcs = 
   List.filter_map blocks 
-    ~f:(fun (name, block) -> if Hashtbl.mem funcs name then begin
-           let used_vars = Hashtbl.create (module String) in 
-           let rec fix labels = match labels with 
-             | [] -> ()
-             | h::t -> let next = Hashtbl.find_exn block_map h in 
-               let continue = used_vars_in_instrs used_vars next in 
-               begin 
-                 match continue with 
-                 | None -> fix t
-                 | Some labels -> List.append t labels |> fix 
-               end 
-           in 
-           (match(used_vars_in_instrs used_vars block) with 
-            | None -> ()
-            | Some lst -> fix lst);
-           Some (name, used_vars)
-         end else None)
+    ~f:(fun (name, _) -> if Hashtbl.mem funcs name then
+            let used_vars = Hashtbl.create (module String) in
+            let succ_lbls = traverse_cfg_succ name cfg_succ in
+            let blocks = List.map succ_lbls
+              ~f:(fun lbl -> Hashtbl.find_exn block_map lbl) in 
+            List.iter blocks ~f:(fun block -> ignore (used_vars_in_instrs used_vars block));
+            Some (name, used_vars)
+         else None)
 
 let get_var instr =
   match instr with
@@ -88,8 +79,8 @@ let filter_instrs used_vars instrs =
   in
   (instrs', !is_deleted)
 
-let make_funcs name block_map used_vars cfg funcs =       
-  let traversed_lbls = traverse_cfg name cfg in
+let make_funcs name block_map used_vars cfg_succ funcs =
+  let traversed_lbls = traverse_cfg_succ name cfg_succ in
   let is_deleted = ref false in
   let instrs' = List.concat_map traversed_lbls ~f:(fun lbl -> 
       let block', is_deleted' = Hashtbl.find_exn block_map lbl |>
@@ -105,13 +96,15 @@ let make_funcs name block_map used_vars cfg funcs =
   let func = Hashtbl.find_exn funcs name in 
   { func with instrs = instrs' }, !is_deleted
 
-let global_elim_instrs blocks block_map cfg prog =
+let global_elim_instrs blocks block_map cfg_succ prog =
   let prog' = List.map prog ~f:(fun func -> (func.name, func)) in
   let funcs = to_hashtbl prog' in 
   let is_processed = ref false in 
-  let block_vars_map = instrs_to_eliminate blocks block_map funcs in 
+  Stdlib.flush_all ();
+  let block_vars_map = instrs_to_eliminate blocks block_map cfg_succ funcs in 
+  Stdlib.flush_all ();
   let new_funcs = List.map block_vars_map ~f:(fun (name, used_vars) ->
-      let (func', is_processed') = make_funcs name block_map used_vars cfg funcs
+      let (func', is_processed') = make_funcs name block_map used_vars cfg_succ funcs
       in
       is_processed := !is_processed || is_processed'; func')
   in
@@ -171,7 +164,7 @@ let local_elim_blocks blocks =
   in
   blocks', !is_processed 
 
-let dce prog blocks cfg =
+let dce prog blocks cfg_succ =
   let rec fix_local blocks stop =
     if stop then blocks
     else
@@ -182,7 +175,7 @@ let dce prog blocks cfg =
     if stop then prog
     else
       let block_map = to_hashtbl blocks in
-      let prog', blocks', is_changed = global_elim_instrs blocks block_map cfg prog in
+      let prog', blocks', is_changed = global_elim_instrs blocks block_map cfg_succ prog in
       let blocks'' = fix_local blocks' false in
       fix_global prog' blocks'' (not is_changed)
   in

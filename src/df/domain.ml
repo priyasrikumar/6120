@@ -43,19 +43,21 @@ module ReachingDomain : FwdDomain = struct
             | Some instrs' -> (List.append instrs' instrs) |> List.stable_dedup));
     t3
 
-  let transfer instr t = match instr with 
+  let transfer instr t =
+    let t' = Hashtbl.copy t in
+    match instr with 
     | Cst (dst, _, _)
     | Binop (dst, _, _, _, _)
     | Unop (dst, _, _, _)
-    | Call (Some (dst), _, _, _) ->      
-      Hashtbl.update t dst ~f:(function
+    | Call (Some (dst), _, _, _) ->    
+      Hashtbl.update t' dst ~f:(function
           | None -> [instr]
-          | Some _ -> [instr]); t
+          | Some _ -> [instr]); t'
     | Call (None, _, _, _)
     | Label _
     | Jmp _
     | Br (_, _, _)
     | Ret _
     | Print _
-    | Nop -> t
+    | Nop -> t'
 end 
