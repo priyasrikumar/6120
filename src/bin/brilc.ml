@@ -60,13 +60,29 @@ module Reach = struct
   let run () = let prog = parse_in in 
       let blocks, cfg_succ, cfg_pred = extract_cfg prog in
       let res = Res.algo blocks cfg_succ cfg_pred in
-      Res.print Format.std_formatter res; to_channel stdout (prog |> to_json)
+      Res.print Format.std_formatter res
 end
 
 let reach_cmd : Command.t = 
   Command.basic_spec ~summary:"reaching definitions dataflow analysis"
     Reach.spec
     Reach.run 
+
+module LiveVars = struct 
+  let spec = Command.Spec.(empty)
+
+  module LiveVars = BackwardAnalysis(LiveVarsDomain)
+
+  let run () = let prog = parse_in in 
+      let blocks, cfg_succ, cfg_pred = extract_cfg prog in
+      let res = LiveVars.algo blocks cfg_succ cfg_pred in
+      LiveVars.print Format.std_formatter res
+end
+
+let live_vars_cmd : Command.t = 
+  Command.basic_spec ~summary:"live variables dataflow analysis"
+    LiveVars.spec
+    LiveVars.run 
 
 module Doms = struct 
   let spec = Command.Spec.(empty)
@@ -89,6 +105,7 @@ let main : Command.t =
     ("lvn", lvn_cmd);
     ("lvn-dce", lvn_dce_cmd);
     ("reach", reach_cmd);
+    ("live-vars", live_vars_cmd);
     ("doms", dom_cmd)]
 
 let () = Command.run main

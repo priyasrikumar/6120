@@ -72,3 +72,5 @@ type cfg_list = (lbl * lbl list) list
 [@@deriving show, eq, sexp]
 type lbl_list = lbl list 
 [@@deriving show, eq]
+type arg_list = arg list
+[@@deriving show, eq]

@@ -21,9 +21,11 @@ module AnalysisBase (D : Domain) = struct
   (*type t = (lbl * D.t * D.t) list*) 
 
   let print fmt t =
-    List.iter t ~f:(fun (lbl,data) -> 
-      Format.fprintf fmt "@[%s = @[IN: %a@]@ @[OUT: %a@]@ @]@ "
-        lbl D.print data.in_b D.print data.out_b)
+    Format.fprintf fmt "@[<hv 0>";
+    List.iter (List.rev t) ~f:(fun (lbl,data) -> 
+      Format.fprintf fmt "@[<hov 2>%s =@ @[IN: %a@]@ @[OUT: %a@]@ @]@ "
+        lbl D.print data.out_b D.print data.in_b);
+     Format.fprintf fmt "@]"
 
   let merge cfg workhash name =
     let cfg_lbls = Hashtbl.find_exn cfg name in
