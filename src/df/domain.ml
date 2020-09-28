@@ -1,7 +1,7 @@
 open Core
 open Types
 
-module type FwdDomain = sig
+module type Domain = sig
   type t
 
   val init : unit -> t
@@ -16,7 +16,7 @@ module type FwdDomain = sig
   val transfer : instr -> t -> t 
 end
 
-module ReachingDomain : FwdDomain = struct
+module ReachingDomain : Domain = struct
   type t = (string, instr_list) Hashtbl.t
 
   let init () = Hashtbl.create (module String)
