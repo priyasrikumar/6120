@@ -87,6 +87,7 @@ let filter_cfg_succ prog cfg_succ =
 let make_cfg_pred cfg_succ =
   let pred_map = Hashtbl.create (module String) in
   Hashtbl.iteri cfg_succ ~f:(fun ~key:k ~data:d ->
+    Hashtbl.update pred_map k ~f:(function None -> [] | Some d -> d);
     List.iter d ~f:(fun v ->
       match Hashtbl.find cfg_succ v with
       | None -> Hashtbl.update pred_map v ~f:(fun _ -> [k])
