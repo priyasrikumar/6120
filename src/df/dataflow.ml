@@ -74,10 +74,9 @@ module AnalysisBase (D : Domain) = struct
       if List.is_empty data.instrs |> not then
         let in_b = merge name in
         let out_block, out_b = transfer in_b data in
-        let old_out_b = data.out_b in
         Hashtbl.update workhash name ~f:(fun _ -> 
           { in_b = in_b; out_b = out_b; instrs = out_block });
-        if D.leq out_b old_out_b then
+        if D.leq out_b data.out_b |> not then
           add_next name
     done;
     List.map (Hashtbl.to_alist workhash) ~f:(fun (lbl, data) ->
