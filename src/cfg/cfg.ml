@@ -150,33 +150,32 @@ let extract_cfg prog =
   let blocks = add_phantom_jmps blocks cfg_succ_map in
   blocks, cfg_succ_map, cfg_pred_map
 
-let doms prog blocks cfg_succ cfg_pred =
+let doms prog _blocks cfg_succ cfg_pred =
   let dom = Hashtbl.create (module String) in
-  let _rev_post_order = List.concat_map prog ~f:(fun func ->
+  let rev_post_order = List.concat_map prog ~f:(fun func ->
       traverse_cfg_post_rev func.name cfg_succ)
   in
-  let rev_post_order = List.map blocks ~f:(fun (name,_) -> name) in
-  List.iter rev_post_order ~f:(fun lbl ->
-      Hashtbl.add_exn dom ~key:lbl ~data:(Hash_set.create (module String)));
-  let dom_is_changing = ref true in
-  for _i = 0 to 5 do
-    dom_is_changing := false; 
-    List.iter rev_post_order 
-      ~f:(fun vertex -> 
-          let preds = Hashtbl.find_exn cfg_pred vertex in
-          if String.equal vertex "og_lbl_loop" then Format.printf "@[%s : %a@]@ " vertex pp_lbl_list preds;
-          let curr_dom = match preds with
+  (*List.iter rev_post_order ~f:(fun lbl ->
+      Hashtbl.add_exn dom ~key:lbl ~data:(Hash_set.create (module String)));*)
+  let dom_change = ref true in
+  while !dom_change do
+    dom_change := false; 
+    List.iter rev_post_order ~f:(fun vertex -> 
+      let preds = Hashtbl.find_exn cfg_pred vertex in
+      let curr_dom = match preds with
+        | [] -> Hash_set.create (module String)
+        | _ -> 
+            let preds' = List.filter_map preds ~f:(Hashtbl.find dom) in
+            match preds' with
             | [] -> Hash_set.create (module String)
-            | x :: [] -> Hashtbl.find_exn dom x
-            | x :: ((_ :: _) as rest) ->
-                List.fold rest ~init:(Hashtbl.find_exn dom x) ~f:(fun acc lbl ->
-                  Hash_set.inter acc @@ Hashtbl.find_exn dom lbl)
-          in
-          Hash_set.add curr_dom vertex;
-          if String.equal vertex "og_lbl_loop" then Format.printf "@[%s: %a@]@ " vertex pp_lbl_list (Hash_set.to_list curr_dom);
-          let _prev_dom = Hashtbl.find_exn dom vertex in
-          Hashtbl.update dom vertex ~f:(fun _ -> curr_dom))
-          (*dom_is_changing := !dom_is_changing ||
-                             (Hash_set.equal prev_dom curr_dom |> not))*)
+            | h :: [] -> Hash_set.copy h
+            | h :: t -> List.fold t ~init:(Hash_set.copy h) ~f:Hash_set.inter
+      in
+      Hash_set.add curr_dom vertex;
+      Hashtbl.find_and_call dom vertex
+        ~if_found:(fun prev_dom -> dom_change := !dom_change ||
+            Hash_set.equal prev_dom curr_dom |> not)
+        ~if_not_found:(fun _ -> dom_change := true);
+      Hashtbl.update dom vertex ~f:(fun _ -> curr_dom))
   done;
   dom

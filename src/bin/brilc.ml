@@ -74,8 +74,8 @@ module Doms = struct
   let run () = let prog = parse_in in 
       let blocks, cfg_succ, cfg_pred = extract_cfg prog in
       let res = doms prog blocks cfg_succ cfg_pred in 
-      Hashtbl.iteri res ~f:(fun ~key:_ ~data:_ -> ())
-      (* Format.printf "@[%s %a@]@ " key Types.pp_lbl_list (Hash_set.to_list data)) *)
+      Hashtbl.iteri res ~f:(fun ~key:key ~data:data -> 
+        Format.printf "@[%s %a@]@ " key Types.pp_lbl_list (Hash_set.to_list data))
 end
 
 let dom_cmd : Command.t = 
