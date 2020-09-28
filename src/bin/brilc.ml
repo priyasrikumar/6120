@@ -68,12 +68,28 @@ let reach_cmd : Command.t =
     Reach.spec
     Reach.run 
 
+module Doms = struct 
+  let spec = Command.Spec.(empty)
+
+  let run () = let prog = parse_in in 
+      let blocks, cfg_succ, cfg_pred = extract_cfg prog in
+      let res = doms prog blocks cfg_succ cfg_pred in 
+      Hashtbl.iteri res ~f:(fun ~key:_ ~data:_ -> ())
+      (* Format.printf "@[%s %a@]@ " key Types.pp_lbl_list (Hash_set.to_list data)) *)
+end
+
+let dom_cmd : Command.t = 
+  Command.basic_spec ~summary:"compute dominators"
+    Doms.spec
+    Doms.run 
+
 let main : Command.t = 
   Command.group ~summary:"pick an optimization or two"
   [("dce", dce_cmd);
     ("lvn", lvn_cmd);
     ("lvn-dce", lvn_dce_cmd);
-    ("reach", reach_cmd)]
+    ("reach", reach_cmd);
+    ("doms", dom_cmd)]
 
 let () = Command.run main
 

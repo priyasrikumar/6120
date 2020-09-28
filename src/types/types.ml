@@ -70,3 +70,5 @@ type blocks_list = (lbl * instr list) list
 [@@deriving show, eq, sexp]
 type cfg_list = (lbl * lbl list) list
 [@@deriving show, eq, sexp]
+type lbl_list = lbl list 
+[@@deriving show, eq]

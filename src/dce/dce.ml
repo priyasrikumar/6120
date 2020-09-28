@@ -52,7 +52,7 @@ let instrs_to_eliminate blocks block_map cfg_succ funcs =
   List.filter_map blocks 
     ~f:(fun (name, _) -> if Hashtbl.mem funcs name then
             let used_vars = Hashtbl.create (module String) in
-            let succ_lbls = traverse_cfg_succ name cfg_succ in
+            let succ_lbls = traverse_cfg_pre name cfg_succ in
             let blocks = List.map succ_lbls
               ~f:(fun lbl -> Hashtbl.find_exn block_map lbl) in 
             List.iter blocks ~f:(fun block -> ignore (used_vars_in_instrs used_vars block));
@@ -80,7 +80,7 @@ let filter_instrs used_vars instrs =
   (instrs', !is_deleted)
 
 let make_funcs name block_map used_vars cfg_succ funcs =
-  let traversed_lbls = traverse_cfg_succ name cfg_succ in
+  let traversed_lbls = traverse_cfg_pre name cfg_succ in
   let is_deleted = ref false in
   let instrs' = List.concat_map traversed_lbls ~f:(fun lbl -> 
       let block', is_deleted' = Hashtbl.find_exn block_map lbl |>
