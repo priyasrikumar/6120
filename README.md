@@ -28,16 +28,37 @@ make rebuild
 ```
 If prompted to delete brilc, enter `y`
 
-# Running the Program
+# Running DCE/LVN/LVN+DCE
+
+To run just DCE or just LVN or LVN followed by DCE execute the following command.
 
 ```
-bril2json < <filepath> | ./brilc [lvn|dce|lvn-dce] | bril2txt | bril2json | brili -p
+bril2json < <filepath> | ./brilc [dce|lvn|lvn-dce] | bril2txt | bril2json
 ```
+
+This will produce a new optimized program from the original program specified in `<filepath>` and print it to `stdout`.
+
 Brench outputs are in the `out/` directory. We add some extraneous jumps sometimes, so we don't outperform the baseline in terms of dynamic instructions with DCE. But LVN or LVN + DCE works great! 
+
+# Running Dataflow Analyses
+
+We have implemented a generic dataflow analyses solver which is a functor over an underlying dataflow domain. The solver works both in the forward and backward fashion. The available domains are
+
+* reaching definitions - `reach` (forward)
+* live variables - `live-vars` (backward)
+* constant propagation - `const-prop` (forward)
+
+To run any of these analyses execute the following command.
+
+```
+bril2json < <filepath> | ./brilc [reach|live-vars|const-prop]
+```
+
+This will produce the results of the analysis for each basic block from the original program specified in `<filepath>` and print it to `stdout`. Technically, we associate with each instruction an element of the domain so we could print more fine-grained instruction level information as well.
 
 # Running a Bril Program
 
 ```
-make test-[dce|lvn|lvn-dce] F=<filepath>
+make test-[dce|lvn|lvn-dce|reach|live-vars|const-prop] F=<filepath>
 ```
-If prompted to delete brilc, enter `y`
+If prompted to delete brilc, enter `y`.
