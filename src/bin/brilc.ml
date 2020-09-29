@@ -84,6 +84,22 @@ let live_vars_cmd : Command.t =
     LiveVars.spec
     LiveVars.run 
 
+module ConstantPropagation = struct 
+  let spec = Command.Spec.(empty)
+
+  module CPD = ForwardAnalysis(ConstantPropDomain)
+
+  let run () = let prog = parse_in in 
+      let blocks, cfg_succ, cfg_pred = extract_cfg prog in
+      let res = CPD.algo blocks cfg_succ cfg_pred in
+      CPD.print Format.std_formatter res
+end
+
+let cpd_cmd : Command.t = 
+  Command.basic_spec ~summary:"constant propagation dataflow analysis"
+    ConstantPropagation.spec
+    ConstantPropagation.run 
+
 module Doms = struct 
   let spec = Command.Spec.(empty)
 
@@ -106,6 +122,7 @@ let main : Command.t =
     ("lvn-dce", lvn_dce_cmd);
     ("reach", reach_cmd);
     ("live-vars", live_vars_cmd);
+    ("const-prop", cpd_cmd);
     ("doms", dom_cmd)]
 
 let () = Command.run main

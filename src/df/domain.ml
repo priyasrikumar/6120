@@ -17,7 +17,7 @@ module type Domain = sig
 end
 
 module ReachingDomain : Domain = struct
-  type t = (string, instr_list) Hashtbl.t
+  type t = (arg, instr_list) Hashtbl.t
 
   let init () = Hashtbl.create (module String)
 
@@ -63,7 +63,7 @@ module ReachingDomain : Domain = struct
 end 
 
 module LiveVarsDomain : Domain = struct
-  type t = string Hash_set.t
+  type t = arg Hash_set.t
 
   let init () = Hash_set.create (module String)
 
@@ -105,6 +105,156 @@ module LiveVarsDomain : Domain = struct
     | Ret (None) -> ()
     | Print (args) ->
         List.iter args ~f:(Hash_set.add t')
+    | Nop -> ()
+    end; t'
+end
+
+module ConstantPropDomain : Domain = struct
+  type prop_lattice = Bot | Top | ConstI of int | ConstB of bool
+  [@@deriving show, eq]
+  type prop_lattice_list = (arg * prop_lattice) list [@@deriving show]
+  type t = (arg, prop_lattice) Hashtbl.t
+
+  let leq p1 p2 =
+    match p1, p2 with
+    | Top, _ -> true
+    | _, Bot -> true
+    | _ -> equal_prop_lattice p1 p2
+
+  let meet p1 p2 =
+    match p1, p2 with
+    | _, Top -> p1
+    | Top, _ -> p2
+    | Bot, _ -> Bot
+    | _, Bot -> Bot
+    | _, _ -> if equal_prop_lattice p1 p2 then p1 else Bot
+
+  let init () = Hashtbl.create (module String)
+
+  let to_string t = 
+    Hashtbl.to_alist t |> show_prop_lattice_list
+  let print fmt t =
+    Format.fprintf fmt "@[%a@]" pp_prop_lattice_list (Hashtbl.to_alist t)
+
+  let leq t1 t2 =
+    Hashtbl.fold t1 ~init:true ~f:(fun ~key:k ~data:d acc ->
+      match Hashtbl.find t2 k with
+      | None -> acc && true
+      | Some d' -> acc && leq d d')
+
+  let merge t1 t2 =
+    let t3 = Hashtbl.copy t1 in
+    Hashtbl.iteri t2 ~f:(fun ~key:var ~data:prop ->
+      Hashtbl.update t3 var ~f:(function
+            | None -> prop
+            | Some prop' -> meet prop prop'));
+    t3
+
+  let is_arith = function
+    | Add | Mul | Sub | Div -> true
+    | _ -> false 
+  let is_cmp = function
+    | Lt | Gt | Le | Ge | Eq -> true
+    | _ -> false
+  let _is_bool = function
+    | Or | And -> true
+    | _ -> false
+
+  let process_args t args =
+    List.iter args ~f:(fun arg ->
+      Hashtbl.update t arg ~f:(function None -> Top | Some p -> p))
+
+  let process_binop t dst op arg1 arg2 =
+    process_args t [arg1; arg2];
+    if is_arith op then begin
+      match Hashtbl.find_exn t arg1, Hashtbl.find_exn t arg2 with
+      | Bot, _ | _, Bot -> Hashtbl.update t dst ~f:(fun _ -> Bot)
+      | Top, _ | _, Top -> Hashtbl.update t dst ~f:(fun _ -> Top)
+      | ConstI (i1), ConstI (i2) -> begin 
+          let i3 =
+            match op with
+            | Add -> ConstI (i1 + i2)
+            | Mul -> ConstI (i1 * i2)
+            | Sub -> ConstI (i1 - i2)
+            | Div -> if i2 = 0 then Bot else ConstI (i1 / i2)
+            | _ -> failwith "Should be unreachable, always guaranteed arithmetic op."
+          in
+          Hashtbl.update t dst ~f:(fun _ -> i3)
+        end 
+      | _ -> failwith "Type error in processing constant propagation binop."
+    end else if is_cmp op then begin
+      match Hashtbl.find_exn t arg1, Hashtbl.find_exn t arg2 with
+      | Bot, _ | _, Bot -> Hashtbl.update t dst ~f:(fun _ -> Bot)
+      | Top, _ | _, Top -> Hashtbl.update t dst ~f:(fun _ -> Top)
+      | ConstI (i1), ConstI (i2) -> begin 
+          let b3 =
+            match op with
+            | Eq -> ConstB (i1 = i2)
+            | Lt -> ConstB (i1 < i2)
+            | Gt -> ConstB (i1 > i2)
+            | Le -> ConstB (i1 <= i2)
+            | Ge -> ConstB (i1 >= i2)
+            | _ -> failwith "Should be unreachable, always guaranteed comparison op."
+          in
+          Hashtbl.update t dst ~f:(fun _ -> b3)
+        end 
+      | _ -> failwith "Type error in processing constant propagation binop."
+    end else begin
+      match Hashtbl.find_exn t arg1, Hashtbl.find_exn t arg2 with
+      | Bot, _ | _, Bot -> Hashtbl.update t dst ~f:(fun _ -> Bot)
+      | Top, _ | _, Top -> Hashtbl.update t dst ~f:(fun _ -> Top)
+      | ConstB (b1), ConstB (b2) -> begin 
+          let b3 =
+            match op with
+            | And -> ConstB (b1 && b2)
+            | Or -> ConstB (b1 || b2)
+            | _ -> failwith "Should be unreachable, always guaranteed comparison op."
+          in
+          Hashtbl.update t dst ~f:(fun _ -> b3)
+        end 
+      | _ -> failwith "Type error in processing constant propagation binop."
+    end
+
+  let process_unop t dst op arg =
+    process_args t [arg];
+    match op with 
+    | Not -> begin
+        match Hashtbl.find_exn t arg with 
+        | Bot -> Hashtbl.update t dst ~f:(fun _ -> Bot)
+        | Top -> Hashtbl.update t dst ~f:(fun _ -> Top)
+        | ConstB (b) -> Hashtbl.update t dst ~f:(fun _ -> ConstB (not b))
+        | _ -> failwith "Type error in processing constant propagation unop."
+      end
+    | Id -> Hashtbl.update t dst ~f:(fun _ -> Hashtbl.find_exn t arg)
+
+  let transfer instr t =
+    let t' = Hashtbl.copy t in
+    begin match instr with
+    | Label _ -> ()
+    | Cst (dst, _, IntC (i)) ->
+        Hashtbl.update t' dst ~f:(fun _ -> ConstI i)
+    | Cst (dst, _, BoolC (b)) ->
+        Hashtbl.update t' dst ~f:(fun _ -> ConstB b)
+    | Binop (dst, _, op, arg1, arg2) ->
+        process_binop t' dst op arg1 arg2
+    | Unop (dst, _, op, arg) ->
+        process_unop t' dst op arg
+    | Call (Some (dst), _, _, Some (args)) ->
+        process_args t' args;
+        Hashtbl.update t' dst ~f:(fun _ -> Top)
+    | Call (Some (dst), _, _, None) ->
+        Hashtbl.update t' dst ~f:(fun _ -> Top)
+    | Call (None, _, _, Some (args)) ->
+        process_args t' args
+    | Call (None, _, _, None) -> ()
+    | Jmp _ -> ()
+    | Br (arg, _, _) ->
+        process_args t' [arg]
+    | Ret (Some (arg)) -> 
+        process_args t' [arg]
+    | Ret (None) -> ()
+    | Print (args) ->
+        process_args t' args
     | Nop -> ()
     end; t'
 end

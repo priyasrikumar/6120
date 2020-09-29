@@ -20,12 +20,20 @@ module AnalysisBase (D : Domain) = struct
   type t = (lbl * data) list 
   (*type t = (lbl * D.t * D.t) list*) 
 
-  let print fmt t =
-    Format.fprintf fmt "@[<hv 0>";
-    List.iter (List.rev t) ~f:(fun (lbl,data) -> 
-      Format.fprintf fmt "@[<hov 2>%s =@ @[IN: %a@]@ @[OUT: %a@]@ @]@ "
-        lbl D.print data.out_b D.print data.in_b);
-     Format.fprintf fmt "@]"
+  let print ~is_back:flag fmt t =
+    if flag then begin
+      Format.fprintf fmt "@[<hv 0>";
+      List.iter (List.rev t) ~f:(fun (lbl,data) -> 
+        Format.fprintf fmt "@[<hov 2>%s =@ @[IN: %a@]@ @[OUT: %a@]@ @]@ "
+          lbl D.print data.out_b D.print data.in_b);
+       Format.fprintf fmt "@]"
+    end else begin
+      Format.fprintf fmt "@[<hv 0>";
+      List.iter (List.rev t) ~f:(fun (lbl,data) -> 
+        Format.fprintf fmt "@[<hov 2>%s =@ @[IN: %a@]@ @[OUT: %a@]@ @]@ "
+          lbl D.print data.in_b D.print data.out_b);
+       Format.fprintf fmt "@]"
+      end
 
   let merge cfg workhash name =
     let cfg_lbls = Hashtbl.find_exn cfg name in
@@ -89,12 +97,16 @@ end
 module ForwardAnalysis (D : Domain) : AnalysisType = struct
   include AnalysisBase(D)
 
+  let print fmt t = print ~is_back:false fmt t
+
   let algo blocks cfg_succ cfg_pred =
     algo ~is_back:false blocks cfg_succ cfg_pred
 end
 
 module BackwardAnalysis (D : Domain) : AnalysisType = struct
   include AnalysisBase(D)
+
+  let print fmt t = print ~is_back:true fmt t
 
   let algo blocks cfg_succ cfg_pred =
     algo ~is_back:true blocks cfg_succ cfg_pred
