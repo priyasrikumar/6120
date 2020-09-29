@@ -7,6 +7,8 @@ brilc: _build/default/src/bin/brilc.exe
 clean: 
 		rm -fr _build
 
+build:
+	dune build src/bin/brilc.exe
 rebuild: clean brilc
 
 test-dce: rebuild
@@ -20,3 +22,9 @@ test-lvn-dce: rebuild
 
 test-reach: rebuild
 		bril2json < $F | ./brilc reach | bril2txt | bril2json | brili -p
+
+test-live-vars: rebuild
+		bril2json < $F | ./brilc live-vars
+
+test-const-prop: rebuild
+		bril2json < $F | ./brilc const-prop
