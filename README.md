@@ -18,7 +18,7 @@ opam switch 4.11.0
 Then you should install the relevant libraries using opam
 
 ```
-opam install ocamlfind merlin yojson ppx_deriving
+opam install ocamlfind merlin yojson ppx_deriving core ppx_jane
 ```
 
 # Compiling the Program
