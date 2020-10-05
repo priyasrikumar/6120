@@ -77,7 +77,7 @@ module Tree (K : Hashtbl.Key) = struct
     List.concat_map n.children ~f:succs  
 
   (* get all parents of a given node, watch out for cycles *)
-  let rec predecessors ~node:n =
+  let predecessors ~node:n =
     let visit_tbl = KTbl.create () in
     let rec preds n = n :: List.concat_map n.parents ~f:(fun n ->
       if KTbl.mem visit_tbl n.label then []
