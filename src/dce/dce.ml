@@ -46,7 +46,12 @@ let used_vars_in_instrs used_vars instrs =
       | Nop -> None
       | Print (args) ->
           List.iter args ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true)); 
-          None)
+          None
+      | Phi (_, arg1, _, arg2) -> 
+          Hashtbl.update used_vars arg1 ~f:(function _ -> true);
+          Hashtbl.update used_vars arg2 ~f:(function _ -> true);
+          None
+      )
 
 let instrs_to_eliminate blocks block_map cfg_succ funcs = 
   List.filter_map blocks 
@@ -64,7 +69,7 @@ let get_var instr =
   | Cst (d,_, _) | Binop (d, _, _,_ , _)
   | Unop (d, _, _, _) | Call (Some d,_, _, _)-> Some (d)
   | Label _| Jmp (_) | Br (_, _ , _ ) | Ret (_) | Print (_)
-  | Call (None, _, _, _)| Nop -> None
+  | Call (None, _, _, _)| Nop -> None | Phi (_, _, _, _) -> None
 
 let filter_instrs used_vars instrs =
   let is_deleted = ref false in 
@@ -132,6 +137,7 @@ let local_elim_instrs instrs =
       | Ret (None) -> [], None
       | Nop -> [], None
       | Print (args) -> args, None
+      | Phi (_, arg1, _, arg2) -> [arg1; arg2], None
     in
     (* remove uses *)
     List.iter uses ~f:(Hashtbl.remove last_def);

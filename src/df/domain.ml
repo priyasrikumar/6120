@@ -59,7 +59,8 @@ module ReachingDomain : Domain = struct
     | Br (_, _, _)
     | Ret _
     | Print _
-    | Nop -> t'
+    | Nop 
+    | Phi (_, _, _, _)-> t'
 end 
 
 module LiveVarsDomain : Domain = struct
@@ -74,38 +75,40 @@ module LiveVarsDomain : Domain = struct
 
   let leq t1 t2 =
     Hash_set.fold t1 ~init:true ~f:(fun acc e ->
-      acc && Hash_set.mem t2 e)
+        acc && Hash_set.mem t2 e)
 
   let merge = Hash_set.union
 
   let transfer instr t =
     let t' = Hash_set.copy t in
     begin match instr with
-    | Label _ -> ()
-    | Cst (dst, _, _) ->
+      | Label _ -> ()
+      | Cst (dst, _, _) ->
         Hash_set.remove t' dst
-    | Binop (dst, _, _, arg1, arg2) ->
+      | Binop (dst, _, _, arg1, arg2) ->
         Hash_set.add t' arg1; Hash_set.add t' arg2;
         Hash_set.remove t' dst
-    | Unop (dst, _, _, arg) ->
+      | Unop (dst, _, _, arg) ->
         Hash_set.add t' arg; Hash_set.remove t' dst
-    | Call (Some (dst), _, _, Some (args)) ->
+      | Call (Some (dst), _, _, Some (args)) ->
         List.iter args ~f:(Hash_set.add t');
         Hash_set.remove t' dst
-    | Call (Some (dst), _, _, None) ->
+      | Call (Some (dst), _, _, None) ->
         Hash_set.remove t' dst
-    | Call (None, _, _, Some (args)) ->
+      | Call (None, _, _, Some (args)) ->
         List.iter args ~f:(Hash_set.add t')
-    | Call (None, _, _, None) -> ()
-    | Jmp _ -> ()
-    | Br (arg, _, _) ->
+      | Call (None, _, _, None) -> ()
+      | Jmp _ -> ()
+      | Br (arg, _, _) ->
         Hash_set.add t' arg
-    | Ret (Some (arg)) ->
+      | Ret (Some (arg)) ->
         Hash_set.add t' arg
-    | Ret (None) -> ()
-    | Print (args) ->
+      | Ret (None) -> ()
+      | Print (args) ->
         List.iter args ~f:(Hash_set.add t')
-    | Nop -> ()
+      | Nop -> ()
+      | Phi (_, arg1, _, arg2) -> Hash_set.add t' arg1;
+        Hash_set.add t' arg2
     end; t'
 end
 
@@ -138,14 +141,14 @@ module ConstantPropDomain : Domain = struct
 
   let leq t1 t2 =
     Hashtbl.fold t1 ~init:true ~f:(fun ~key:k ~data:d acc ->
-      match Hashtbl.find t2 k with
-      | None -> acc && true
-      | Some d' -> acc && leq d d')
+        match Hashtbl.find t2 k with
+        | None -> acc && true
+        | Some d' -> acc && leq d d')
 
   let merge t1 t2 =
     let t3 = Hashtbl.copy t1 in
     Hashtbl.iteri t2 ~f:(fun ~key:var ~data:prop ->
-      Hashtbl.update t3 var ~f:(function
+        Hashtbl.update t3 var ~f:(function
             | None -> prop
             | Some prop' -> meet prop prop'));
     t3
@@ -162,7 +165,7 @@ module ConstantPropDomain : Domain = struct
 
   let process_args t args =
     List.iter args ~f:(fun arg ->
-      Hashtbl.update t arg ~f:(function None -> Top | Some p -> p))
+        Hashtbl.update t arg ~f:(function None -> Top | Some p -> p))
 
   let process_binop t dst op arg1 arg2 =
     process_args t [arg1; arg2];
@@ -230,31 +233,32 @@ module ConstantPropDomain : Domain = struct
   let transfer instr t =
     let t' = Hashtbl.copy t in
     begin match instr with
-    | Label _ -> ()
-    | Cst (dst, _, IntC (i)) ->
+      | Label _ -> ()
+      | Cst (dst, _, IntC (i)) ->
         Hashtbl.update t' dst ~f:(fun _ -> ConstI i)
-    | Cst (dst, _, BoolC (b)) ->
+      | Cst (dst, _, BoolC (b)) ->
         Hashtbl.update t' dst ~f:(fun _ -> ConstB b)
-    | Binop (dst, _, op, arg1, arg2) ->
+      | Binop (dst, _, op, arg1, arg2) ->
         process_binop t' dst op arg1 arg2
-    | Unop (dst, _, op, arg) ->
+      | Unop (dst, _, op, arg) ->
         process_unop t' dst op arg
-    | Call (Some (dst), _, _, Some (args)) ->
+      | Call (Some (dst), _, _, Some (args)) ->
         process_args t' args;
         Hashtbl.update t' dst ~f:(fun _ -> Top)
-    | Call (Some (dst), _, _, None) ->
+      | Call (Some (dst), _, _, None) ->
         Hashtbl.update t' dst ~f:(fun _ -> Top)
-    | Call (None, _, _, Some (args)) ->
+      | Call (None, _, _, Some (args)) ->
         process_args t' args
-    | Call (None, _, _, None) -> ()
-    | Jmp _ -> ()
-    | Br (arg, _, _) ->
+      | Call (None, _, _, None) -> ()
+      | Jmp _ -> ()
+      | Br (arg, _, _) ->
         process_args t' [arg]
-    | Ret (Some (arg)) -> 
+      | Ret (Some (arg)) -> 
         process_args t' [arg]
-    | Ret (None) -> ()
-    | Print (args) ->
+      | Ret (None) -> ()
+      | Print (args) ->
         process_args t' args
-    | Nop -> ()
+      | Phi (_, arg1, _, arg2) -> process_args t' [arg1; arg2]
+      | Nop -> ()
     end; t'
 end

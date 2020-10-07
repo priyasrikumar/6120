@@ -11,3 +11,5 @@ val traverse_cfg_pre : lbl -> cfg_t -> lbl list
 val traverse_cfg_post : lbl -> cfg_t -> lbl list
 
 val doms : prog -> blocks_t -> cfg_t -> cfg_t -> dom_t
+val df : (lbl, lbl Hash_set.t) Hashtbl.t ->
+(lbl, lbl list) Hashtbl.t -> (lbl, lbl Hash_set.t) Hashtbl.t

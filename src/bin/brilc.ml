@@ -55,12 +55,12 @@ let lvn_dce_cmd : Command.t =
 module Reach = struct 
   let spec = Command.Spec.(empty)
 
-  module Res = ForwardAnalysis(ReachingDomain)
+  module Reach = ForwardAnalysis(ReachingDomain)
 
   let run () = let prog = parse_in in 
       let blocks, cfg_succ, cfg_pred = extract_cfg prog in
-      let res = Res.algo blocks cfg_succ cfg_pred in
-      Res.print Format.std_formatter res
+      let res = Reach.algo blocks cfg_succ cfg_pred in
+      Reach.print Format.std_formatter res
 end
 
 let reach_cmd : Command.t = 
@@ -115,6 +115,40 @@ let dom_cmd : Command.t =
     Doms.spec
     Doms.run 
 
+(* module DomTree = struct 
+  let spec = Command.Spec.empty
+
+  let run () = let prog = parse_in in 
+  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+  let doms = doms prog blocks cfg_succ cfg_pred in 
+  let dom_tree = dom_tree doms in 
+  Hashtbl.iteri dom_tree ~f:(fun ~key ~data -> 
+        Format.printf "@[%s %s@]@ " key data.label)
+end
+
+let dom_tree_cmd : Command.t = 
+  Command.basic_spec ~summary:"construct dominator tree"
+    DomTree.spec
+    DomTree.run  *)
+
+module DomFrontiers = struct 
+  let spec = Command.Spec.empty
+
+  let run () = let prog = parse_in in 
+  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+  let dom = doms prog blocks cfg_succ cfg_pred in 
+  let dom_frontiers = df dom cfg_succ in 
+  let tmp = Hashtbl.to_alist dom_frontiers in
+  let to_print = List.map tmp ~f:(fun (a,b) -> (a, Hash_set.to_list b)) in
+  Format.printf "df : %a" Types.pp_dom_list to_print
+end
+
+let dom_frontier_cmd : Command.t = 
+  Command.basic_spec ~summary:"construct dominator tree"
+    DomFrontiers.spec
+    DomFrontiers.run 
+
+
 let main : Command.t = 
   Command.group ~summary:"pick an optimization or two"
   [("dce", dce_cmd);
@@ -123,7 +157,10 @@ let main : Command.t =
     ("reach", reach_cmd);
     ("live-vars", live_vars_cmd);
     ("const-prop", cpd_cmd);
-    ("doms", dom_cmd)]
+    ("doms", dom_cmd);
+    (* ("domtree", dom_tree_cmd); *)
+    ("domfrontiers", dom_frontier_cmd)
+    ]
 
 let () = Command.run main
 

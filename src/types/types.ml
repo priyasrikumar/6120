@@ -51,6 +51,7 @@ type instr =
   | Ret of arg option
   | Print of arg list
   | Nop
+  | Phi of lbl * arg * lbl * arg
 [@@deriving show, eq, sexp]
 
 type func = {
@@ -74,3 +75,6 @@ type lbl_list = lbl list
 [@@deriving show, eq]
 type arg_list = arg list
 [@@deriving show, eq]
+
+ type dom_list = (lbl * lbl list) list
+ [@@deriving show]

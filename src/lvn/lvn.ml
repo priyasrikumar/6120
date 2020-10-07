@@ -236,6 +236,7 @@ let lvn_block block =
         Print (List.map args ~f:get_correct_call_arg)
     | Nop ->
         instr
+    | Phi _ -> failwith "not supported yet"
   )
 
 let lvn prog blocks cfg_succ =

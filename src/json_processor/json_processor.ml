@@ -230,6 +230,7 @@ let instr_to_json instr =
         ("op", `String "print") ; 
       ]
     | Nop -> [("op", `String "nop")]
+    | _ -> failwith "unimplemented"
   in
   `Assoc assoc
 

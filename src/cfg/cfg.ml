@@ -106,9 +106,9 @@ let make_cfg_pred cfg_succ =
       List.iter d ~f:(fun v ->
           Hashtbl.update pred_map v
             ~f:(function None -> [k] | Some lbls -> k::lbls))
-          (*match Hashtbl.find pred_map v with
-          | None -> Hashtbl.update pred_map v ~f:(fun _ -> [k])
-          | Some (lbls) -> Hashtbl.update pred_map v ~f:(fun _ -> k::lbls)) *)
+      (*match Hashtbl.find pred_map v with
+        | None -> Hashtbl.update pred_map v ~f:(fun _ -> [k])
+        | Some (lbls) -> Hashtbl.update pred_map v ~f:(fun _ -> k::lbls)) *)
     );
   pred_map
 
@@ -161,21 +161,93 @@ let doms prog _blocks cfg_succ cfg_pred =
   while !dom_change do
     dom_change := false; 
     List.iter rev_post_order ~f:(fun vertex -> 
-      let preds = Hashtbl.find_exn cfg_pred vertex in
-      let curr_dom = match preds with
-        | [] -> Hash_set.create (module String)
-        | _ -> 
+        let preds = Hashtbl.find_exn cfg_pred vertex in
+        let curr_dom = match preds with
+          | [] -> Hash_set.create (module String)
+          | _ -> 
             let preds' = List.filter_map preds ~f:(Hashtbl.find dom) in
             match preds' with
             | [] -> Hash_set.create (module String)
             | h :: [] -> Hash_set.copy h
             | h :: t -> List.fold t ~init:(Hash_set.copy h) ~f:Hash_set.inter
-      in
-      Hash_set.add curr_dom vertex;
-      Hashtbl.find_and_call dom vertex
-        ~if_found:(fun prev_dom -> dom_change := !dom_change ||
-            Hash_set.equal prev_dom curr_dom |> not)
-        ~if_not_found:(fun _ -> dom_change := true);
-      Hashtbl.update dom vertex ~f:(fun _ -> curr_dom))
+        in
+        Hash_set.add curr_dom vertex;
+        Hashtbl.find_and_call dom vertex
+          ~if_found:(fun prev_dom 
+                      -> dom_change := !dom_change ||
+                                       Hash_set.equal prev_dom curr_dom |> not)
+          ~if_not_found:(fun _ -> dom_change := true);
+        Hashtbl.update dom vertex ~f:(fun _ -> curr_dom))
   done;
-  dom
+  dom 
+
+let inv_dom dom =
+  let inv_dom = Hashtbl.create (module String) in
+  (*Hashtbl.iter_keys dom ~f:(fun k ->
+    Hashtbl.add_exn inv_dom ~key:k ~data:(Hash_set.create (module String)));*)
+  Hashtbl.iteri dom ~f:(fun ~key:k ~data:d ->
+    Hash_set.iter d ~f:(fun e -> 
+      Hashtbl.update inv_dom e ~f:(function
+        | None ->
+            let set = Hash_set.create (module String) in
+            Hash_set.add set k; set 
+        | Some set -> Hash_set.add set k; set)));
+  inv_dom
+
+let df dom cfg_succ =
+  let inv_dom = inv_dom dom in
+  let df = Hashtbl.create (module String) in
+  Hashtbl.iter_keys dom ~f:(fun k ->
+    let k_dominates = Hashtbl.find_exn inv_dom k in 
+    let dom_succs = Hash_set.create (module String) in
+    Hash_set.iter k_dominates ~f:(fun node ->
+      let succs = Hashtbl.find_exn cfg_succ node in
+      List.iter succs ~f:(Hash_set.add dom_succs));
+    let frontier = Hash_set.filter dom_succs ~f:(fun k' ->
+      Hash_set.mem k_dominates k' |> not || String.equal k' k)
+    in
+    Hashtbl.add_exn df ~key:k ~data:frontier);
+  df
+
+(* let dom_tree doms =
+  let dom_tree = Hashtbl.create (module String) in
+  Hashtbl.iter_keys doms ~f:(fun key -> 
+      Hashtbl.update dom_tree key ~f:(function 
+          | _ -> create_node ~label:key));
+  Hashtbl.iteri doms ~f:(fun ~key ~data -> 
+      Hash_set.iter data ~f:(fun node -> 
+          connect_nodes 
+            ~child:(Hashtbl.find_exn dom_tree key) 
+            ~parent:(Hashtbl.find_exn dom_tree node)));  
+  dom_tree
+
+let df doms dom_tree cfg_succ =
+  let res = Hashtbl.create (module String) in
+  let rec df_helper node =  
+    let s = Hash_set.create (module String) in 
+    let succs' = Hashtbl.find_exn cfg_succ node.label in 
+    let succs = List.map succs' 
+    ~f:(fun succ -> Hashtbl.find_exn dom_tree succ) in 
+    List.iter succs ~f:(fun succ -> match succ.parent with 
+        | Some node when String.equal node.label succ.label |> not -> 
+            Hash_set.add s node.label
+        | None 
+        | Some _ -> ()); 
+    List.iter node.children 
+      ~f:(fun child -> 
+          df_helper child;
+          Hashtbl.iter_keys res 
+            ~f:(fun w ->
+                let w_doms = Hashtbl.find_exn doms w in
+                if Hash_set.mem w_doms node.label |> not then
+                  Hash_set.add s w;));
+    Hashtbl.add_exn res ~key:node.label ~data:s
+  in
+  Hashtbl.iter dom_tree ~f:df_helper;
+  res 
+
+let dom_frontiers prog = 
+  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+  let doms = doms prog blocks cfg_succ cfg_pred in 
+  let dom_tree = dom_tree doms in 
+  df doms dom_tree cfg_succ *)
