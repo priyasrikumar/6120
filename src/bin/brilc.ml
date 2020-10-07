@@ -2,6 +2,11 @@ open Core
 open Yojson.Basic
 open Cfg 
 open Json_processor
+open Dce 
+open Lvn 
+open Df.Domain
+open Df.Dataflow
+open Ssa
 
 module DCE = struct 
   open Dce
@@ -173,9 +178,25 @@ let to_ssa_cmd : Command.t =
     DomFrontiers.spec
     DomFrontiers.run 
 
+module SSA = struct 
+  let spec = Command.Spec.empty
+
+  let run () = let prog = parse_in in 
+  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+  let dom = doms prog blocks cfg_succ cfg_pred in 
+  let dt = dt dom in 
+  let df = df dom cfg_succ in 
+  let (ssa_prog, _ssa_blocks) = to_ssa prog blocks cfg_succ df dt in 
+  to_channel stdout (ssa_prog |> to_json)
+end
+
+let ssa_cmd : Command.t = 
+  Command.basic_spec ~summary:"convert to ssa"
+    SSA.spec
+    SSA.run 
 
 let main : Command.t = 
-  Command.group ~summary:"pick an optimization or two"
+  Command.group ~summary:"pick an optimization"
   [("dce", dce_cmd);
     ("lvn", lvn_cmd);
     ("lvn-dce", lvn_dce_cmd);
@@ -183,9 +204,9 @@ let main : Command.t =
     ("live-vars", live_vars_cmd);
     ("const-prop", cpd_cmd);
     ("doms", dom_cmd);
-    ("dom-t", dom_tree_cmd); 
-    ("dom-f", dom_frontier_cmd);
-    ("to-ssa", to_ssa_cmd)
+    ("domtree", dom_tree_cmd); 
+    ("domfrontiers", dom_frontier_cmd);
+    ("to-ssa", ssa_cmd)
     ]
 
 let () = Command.run main

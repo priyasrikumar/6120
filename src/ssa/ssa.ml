@@ -138,14 +138,6 @@ let update_func_args stack args =
   Option.(args >>| (fun args' ->
     List.map args' ~f:(fun (arg,typ) ->
       (Hashtbl.find_exn stack arg |> Stack.top_exn |> mk_name,typ))))
-  (*match args with
-  | None -> None
-  | Some (args) ->
-    let args' = List.map args ~f:(fun (lbl,arg) ->
-
-    )
-    in
-    Some (args)*)
 
 let _stack_copy stack =
   let stack' = Hashtbl.create (module String) in
