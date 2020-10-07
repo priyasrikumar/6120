@@ -2,20 +2,15 @@ open Core
 open Yojson.Basic
 open Cfg 
 open Json_processor
-open Dce 
-open Lvn 
-open Df.Domain
-open Df.Dataflow
-open Ssa
 
 module DCE = struct 
   open Dce
   let spec = Command.Spec.(empty)
 
   let run () = let prog = parse_in in 
-      let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
-      let res = dce prog blocks cfg_succ |> to_json in 
-      to_channel stdout res 
+    let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
+    let res = dce prog blocks cfg_succ |> to_json in 
+    to_channel stdout res 
 end
 
 let dce_cmd : Command.t = 
@@ -29,9 +24,9 @@ module LVN = struct
 
 
   let run () = let prog = parse_in in 
-      let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
-      let (res, _, _) = lvn prog blocks cfg_succ in 
-      to_channel stdout (res |> to_json) 
+    let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
+    let (res, _, _) = lvn prog blocks cfg_succ in 
+    to_channel stdout (res |> to_json) 
 end
 
 let lvn_cmd : Command.t = 
@@ -45,11 +40,11 @@ module LVN_DCE = struct
   let spec = Command.Spec.(empty)
 
   let run () = let prog = parse_in in 
-      Printf.printf "here";
-      let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
-      let prog', blocks', cfg_succ' = lvn prog blocks cfg_succ in 
-      let res = dce prog' blocks' cfg_succ' in 
-      to_channel stdout (res |> to_json) 
+    Printf.printf "here";
+    let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
+    let prog', blocks', cfg_succ' = lvn prog blocks cfg_succ in 
+    let res = dce prog' blocks' cfg_succ' in 
+    to_channel stdout (res |> to_json) 
 end
 
 let lvn_dce_cmd : Command.t = 
@@ -65,9 +60,9 @@ module Reach = struct
   module Reach = ForwardAnalysis(ReachingDomain)
 
   let run () = let prog = parse_in in 
-      let blocks, cfg_succ, cfg_pred = extract_cfg prog in
-      let res = Reach.algo blocks cfg_succ cfg_pred in
-      Reach.print Format.std_formatter res
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in
+    let res = Reach.algo blocks cfg_succ cfg_pred in
+    Reach.print Format.std_formatter res
 end
 
 let reach_cmd : Command.t = 
@@ -83,9 +78,9 @@ module LiveVars = struct
   module LiveVars = BackwardAnalysis(LiveVarsDomain)
 
   let run () = let prog = parse_in in 
-      let blocks, cfg_succ, cfg_pred = extract_cfg prog in
-      let res = LiveVars.algo blocks cfg_succ cfg_pred in
-      LiveVars.print Format.std_formatter res
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in
+    let res = LiveVars.algo blocks cfg_succ cfg_pred in
+    LiveVars.print Format.std_formatter res
 end
 
 let live_vars_cmd : Command.t = 
@@ -101,9 +96,9 @@ module ConstantPropagation = struct
   module CPD = ForwardAnalysis(ConstantPropDomain)
 
   let run () = let prog = parse_in in 
-      let blocks, cfg_succ, cfg_pred = extract_cfg prog in
-      let res = CPD.algo blocks cfg_succ cfg_pred in
-      CPD.print Format.std_formatter res
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in
+    let res = CPD.algo blocks cfg_succ cfg_pred in
+    CPD.print Format.std_formatter res
 end
 
 let cpd_cmd : Command.t = 
@@ -115,9 +110,9 @@ module Doms = struct
   let spec = Command.Spec.(empty)
 
   let run () = let prog = parse_in in 
-      let blocks, cfg_succ, cfg_pred = extract_cfg prog in
-      let res = doms prog blocks cfg_succ cfg_pred in 
-      Hashtbl.iteri res ~f:(fun ~key:key ~data:data -> 
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in
+    let res = doms prog blocks cfg_succ cfg_pred in 
+    Hashtbl.iteri res ~f:(fun ~key:key ~data:data -> 
         Format.printf "@[%s %a@]@ " key Types.pp_lbl_list (Hash_set.to_list data))
 end
 
@@ -126,14 +121,14 @@ let dom_cmd : Command.t =
     Doms.spec
     Doms.run 
 
- module DomTree = struct 
+module DomTree = struct 
   let spec = Command.Spec.empty
 
   let run () = let prog = parse_in in 
-  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
-  let doms = doms prog blocks cfg_succ cfg_pred in 
-  let dom_tree = dt doms in 
-  Hashtbl.iteri dom_tree ~f:(fun ~key ~data -> 
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+    let doms = doms prog blocks cfg_succ cfg_pred in 
+    let dom_tree = dt doms in 
+    Hashtbl.iteri dom_tree ~f:(fun ~key ~data -> 
         let domlst = Hash_set.to_list data in 
         Format.printf "@[%s %a@]@ " key Types.pp_lbl_list domlst)
 end
@@ -147,12 +142,12 @@ module DomFrontiers = struct
   let spec = Command.Spec.empty
 
   let run () = let prog = parse_in in 
-  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
-  let dom = doms prog blocks cfg_succ cfg_pred in 
-  let dom_frontiers = df dom cfg_succ in 
-  let tmp = Hashtbl.to_alist dom_frontiers in
-  let to_print = List.map tmp ~f:(fun (a,b) -> (a, Hash_set.to_list b)) in
-  Format.printf "df : %a" Types.pp_dom_list to_print
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+    let dom = doms prog blocks cfg_succ cfg_pred in 
+    let dom_frontiers = df dom cfg_succ in 
+    let tmp = Hashtbl.to_alist dom_frontiers in
+    let to_print = List.map tmp ~f:(fun (a,b) -> (a, Hash_set.to_list b)) in
+    Format.printf "df : %a" Types.pp_dom_list to_print
 end
 
 let dom_frontier_cmd : Command.t = 
@@ -165,29 +160,12 @@ module SSA = struct
   let spec = Command.Spec.empty
 
   let run () = let prog = parse_in in 
-  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
-  let dom = doms prog blocks cfg_succ cfg_pred in 
-  let dom_frontiers = df dom cfg_succ in 
-  let dom_tree = dt dom in
-  let ssa_prog, _ssa_blocks = to_ssa prog blocks cfg_succ dom_frontiers dom_tree in 
-  to_channel stdout (ssa_prog |> to_json) 
-end
-
-let to_ssa_cmd : Command.t = 
-  Command.basic_spec ~summary:"convert program to ssa form"
-    DomFrontiers.spec
-    DomFrontiers.run 
-
-module SSA = struct 
-  let spec = Command.Spec.empty
-
-  let run () = let prog = parse_in in 
-  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
-  let dom = doms prog blocks cfg_succ cfg_pred in 
-  let dt = dt dom in 
-  let df = df dom cfg_succ in 
-  let (ssa_prog, _ssa_blocks) = to_ssa prog blocks cfg_succ df dt in 
-  to_channel stdout (ssa_prog |> to_json)
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+    let dom = doms prog blocks cfg_succ cfg_pred in 
+    let dt = dt dom in 
+    let df = df dom cfg_succ in 
+    let (ssa_prog, _ssa_blocks) = to_ssa prog blocks cfg_succ df dt in 
+    to_channel stdout (ssa_prog |> to_json)
 end
 
 let ssa_cmd : Command.t = 
@@ -197,16 +175,16 @@ let ssa_cmd : Command.t =
 
 let main : Command.t = 
   Command.group ~summary:"pick an optimization"
-  [("dce", dce_cmd);
-    ("lvn", lvn_cmd);
-    ("lvn-dce", lvn_dce_cmd);
-    ("reach", reach_cmd);
-    ("live-vars", live_vars_cmd);
-    ("const-prop", cpd_cmd);
-    ("doms", dom_cmd);
-    ("domtree", dom_tree_cmd); 
-    ("domfrontiers", dom_frontier_cmd);
-    ("to-ssa", ssa_cmd)
+    [("dce", dce_cmd);
+     ("lvn", lvn_cmd);
+     ("lvn-dce", lvn_dce_cmd);
+     ("reach", reach_cmd);
+     ("live-vars", live_vars_cmd);
+     ("const-prop", cpd_cmd);
+     ("doms", dom_cmd);
+     ("domtree", dom_tree_cmd); 
+     ("domfrontiers", dom_frontier_cmd);
+     ("to-ssa", ssa_cmd)
     ]
 
 let () = Command.run main
