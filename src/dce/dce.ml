@@ -179,7 +179,7 @@ let dce prog blocks cfg_succ =
       fix_local blocks' (not is_changed)
   in 
   let rec fix_global prog blocks stop = 
-    if stop then prog
+    if stop then prog_from_block_list prog blocks cfg_succ
     else
       let block_map = to_hashtbl blocks in
       let prog', blocks', is_changed = global_elim_instrs blocks block_map cfg_succ prog in
