@@ -50,7 +50,7 @@ let used_vars_in_instrs used_vars instrs =
       | Phi (dst, _, phis) ->
           Hashtbl.update used_vars dst ~f:(function _ -> false); 
           List.iter phis ~f:(fun (_,arg) ->
-            Hashtbl.update used_vars arg1 ~f:(function _ -> true));
+            Hashtbl.update used_vars arg ~f:(function _ -> true));
           None
       )
 

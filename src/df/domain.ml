@@ -107,7 +107,7 @@ module LiveVarsDomain : Domain = struct
       | Print (args) ->
         List.iter args ~f:(Hash_set.add t')
       | Nop -> ()
-      | Phi (dst, _, pihis) ->
+      | Phi (dst, _, phis) ->
           List.iter phis ~f:(fun (_,arg) -> Hash_set.add t' arg);
           Hash_set.remove t' dst
     end; t'
@@ -260,8 +260,8 @@ module ConstantPropDomain : Domain = struct
       | Print (args) ->
         process_args t' args
       | Phi (dst, _, phis) -> 
-          process_args t' (List.map phis ~f:snd)
-          Hashtbl.update t' dst ~f:(fun _ -> Top)
+        process_args t' (List.map phis ~f:snd);
+        Hashtbl.update t' dst ~f:(fun _ -> Top)
       | Nop -> ()
     end; t'
 end

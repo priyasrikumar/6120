@@ -107,6 +107,11 @@ let parse_instr json =
         Print (json |> member "args" |> to_list |> List.map to_string)
       | `String "nop" ->
         Nop
+      | `String "phi" ->
+        let labels = json |> member "labels" |> to_list |> List.map to_string in
+        let args = json |> member "args" |> to_list |> List.map to_string in
+        let phis = List.map2 (fun lbl arg -> (lbl,arg)) labels args in
+        Phi (dst (), typ (), phis)
       | _ ->
         raise_invalid_arg "Invalid op" json
     end
@@ -154,6 +159,7 @@ let rev_unop_tbl =
 
 let instr_to_json instr =
   let to_args args = `List (List.map (fun x -> `String x) args) in
+  let to_labels labels = to_args labels in 
   let assoc = match instr with
     | Label (lbl) -> [("label", `String lbl)]
     | Cst (d, t, cst) ->
@@ -230,7 +236,16 @@ let instr_to_json instr =
         ("op", `String "print") ; 
       ]
     | Nop -> [("op", `String "nop")]
-    | _ -> failwith "unimplemented"
+    | Phi (d, t, phis) ->
+        let labels, args = List.split phis in
+        [
+          ("args", to_args args) ;
+          ("dest", `String (d)) ;
+          ("labels", to_labels labels) ;
+          ("op", `String ("phi")) ;
+          ("type", rev_typ t) ;
+        ]
+    (*| instr -> failwith ("unimplemented : "^show_instr (instr))*)
   in
   `Assoc assoc
 
