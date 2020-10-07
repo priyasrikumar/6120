@@ -7,6 +7,8 @@ open Lvn
 open Df.Domain
 open Df.Dataflow
 
+module S = Ssa
+
 module DCE = struct 
   let spec = Command.Spec.(empty)
 
