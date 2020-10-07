@@ -47,9 +47,10 @@ let used_vars_in_instrs used_vars instrs =
       | Print (args) ->
           List.iter args ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true)); 
           None
-      | Phi (_, arg1, _, arg2) -> 
-          Hashtbl.update used_vars arg1 ~f:(function _ -> true);
-          Hashtbl.update used_vars arg2 ~f:(function _ -> true);
+      | Phi (dst, _, phis) ->
+          Hashtbl.update used_vars dst ~f:(function _ -> false); 
+          List.iter phis ~f:(fun (_,arg) ->
+            Hashtbl.update used_vars arg1 ~f:(function _ -> true));
           None
       )
 
@@ -69,7 +70,7 @@ let get_var instr =
   | Cst (d,_, _) | Binop (d, _, _,_ , _)
   | Unop (d, _, _, _) | Call (Some d,_, _, _)-> Some (d)
   | Label _| Jmp (_) | Br (_, _ , _ ) | Ret (_) | Print (_)
-  | Call (None, _, _, _)| Nop -> None | Phi (_, _, _, _) -> None
+  | Call (None, _, _, _)| Nop -> None | Phi (_, _, _) -> None
 
 let filter_instrs used_vars instrs =
   let is_deleted = ref false in 
@@ -137,7 +138,7 @@ let local_elim_instrs instrs =
       | Ret (None) -> [], None
       | Nop -> [], None
       | Print (args) -> args, None
-      | Phi (_, arg1, _, arg2) -> [arg1; arg2], None
+      | Phi (dst, _, phis) -> List.map phis ~f:snd, Some (dst)
     in
     (* remove uses *)
     List.iter uses ~f:(Hashtbl.remove last_def);

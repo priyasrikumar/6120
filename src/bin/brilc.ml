@@ -115,21 +115,22 @@ let dom_cmd : Command.t =
     Doms.spec
     Doms.run 
 
-(* module DomTree = struct 
+ module DomTree = struct 
   let spec = Command.Spec.empty
 
   let run () = let prog = parse_in in 
   let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
   let doms = doms prog blocks cfg_succ cfg_pred in 
-  let dom_tree = dom_tree doms in 
+  let dom_tree = dt doms in 
   Hashtbl.iteri dom_tree ~f:(fun ~key ~data -> 
-        Format.printf "@[%s %s@]@ " key data.label)
+        let domlst = Hash_set.to_list data in 
+        Format.printf "@[%s %a@]@ " key Types.pp_lbl_list domlst)
 end
 
 let dom_tree_cmd : Command.t = 
   Command.basic_spec ~summary:"construct dominator tree"
     DomTree.spec
-    DomTree.run  *)
+    DomTree.run  
 
 module DomFrontiers = struct 
   let spec = Command.Spec.empty
@@ -158,7 +159,7 @@ let main : Command.t =
     ("live-vars", live_vars_cmd);
     ("const-prop", cpd_cmd);
     ("doms", dom_cmd);
-    (* ("domtree", dom_tree_cmd); *)
+    ("domtree", dom_tree_cmd); 
     ("domfrontiers", dom_frontier_cmd)
     ]
 

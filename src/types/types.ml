@@ -51,7 +51,7 @@ type instr =
   | Ret of arg option
   | Print of arg list
   | Nop
-  | Phi of lbl * arg * lbl * arg
+  | Phi of dst * typ * (lbl * arg) list
 [@@deriving show, eq, sexp]
 
 type func = {

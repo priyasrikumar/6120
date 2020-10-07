@@ -183,71 +183,41 @@ let doms prog _blocks cfg_succ cfg_pred =
 
 let inv_dom dom =
   let inv_dom = Hashtbl.create (module String) in
-  (*Hashtbl.iter_keys dom ~f:(fun k ->
-    Hashtbl.add_exn inv_dom ~key:k ~data:(Hash_set.create (module String)));*)
   Hashtbl.iteri dom ~f:(fun ~key:k ~data:d ->
-    Hash_set.iter d ~f:(fun e -> 
-      Hashtbl.update inv_dom e ~f:(function
-        | None ->
-            let set = Hash_set.create (module String) in
-            Hash_set.add set k; set 
-        | Some set -> Hash_set.add set k; set)));
+      Hash_set.iter d ~f:(fun e -> 
+          Hashtbl.update inv_dom e ~f:(function
+              | None ->
+                let set = Hash_set.create (module String) in
+                Hash_set.add set k; set 
+              | Some set -> Hash_set.add set k; set)));
   inv_dom
 
 let df dom cfg_succ =
   let inv_dom = inv_dom dom in
   let df = Hashtbl.create (module String) in
   Hashtbl.iter_keys dom ~f:(fun k ->
-    let k_dominates = Hashtbl.find_exn inv_dom k in 
-    let dom_succs = Hash_set.create (module String) in
-    Hash_set.iter k_dominates ~f:(fun node ->
-      let succs = Hashtbl.find_exn cfg_succ node in
-      List.iter succs ~f:(Hash_set.add dom_succs));
-    let frontier = Hash_set.filter dom_succs ~f:(fun k' ->
-      Hash_set.mem k_dominates k' |> not || String.equal k' k)
-    in
-    Hashtbl.add_exn df ~key:k ~data:frontier);
+      let k_dominates = Hashtbl.find_exn inv_dom k in 
+      let dom_succs = Hash_set.create (module String) in
+      Hash_set.iter k_dominates ~f:(fun node ->
+          let succs = Hashtbl.find_exn cfg_succ node in
+          List.iter succs ~f:(Hash_set.add dom_succs));
+      let frontier = Hash_set.filter dom_succs ~f:(fun k' ->
+          Hash_set.mem k_dominates k' |> not || String.equal k' k)
+      in
+      Hashtbl.add_exn df ~key:k ~data:frontier);
   df
 
-(* let dom_tree doms =
-  let dom_tree = Hashtbl.create (module String) in
-  Hashtbl.iter_keys doms ~f:(fun key -> 
-      Hashtbl.update dom_tree key ~f:(function 
-          | _ -> create_node ~label:key));
-  Hashtbl.iteri doms ~f:(fun ~key ~data -> 
-      Hash_set.iter data ~f:(fun node -> 
-          connect_nodes 
-            ~child:(Hashtbl.find_exn dom_tree key) 
-            ~parent:(Hashtbl.find_exn dom_tree node)));  
-  dom_tree
-
-let df doms dom_tree cfg_succ =
-  let res = Hashtbl.create (module String) in
-  let rec df_helper node =  
-    let s = Hash_set.create (module String) in 
-    let succs' = Hashtbl.find_exn cfg_succ node.label in 
-    let succs = List.map succs' 
-    ~f:(fun succ -> Hashtbl.find_exn dom_tree succ) in 
-    List.iter succs ~f:(fun succ -> match succ.parent with 
-        | Some node when String.equal node.label succ.label |> not -> 
-            Hash_set.add s node.label
-        | None 
-        | Some _ -> ()); 
-    List.iter node.children 
-      ~f:(fun child -> 
-          df_helper child;
-          Hashtbl.iter_keys res 
-            ~f:(fun w ->
-                let w_doms = Hashtbl.find_exn doms w in
-                if Hash_set.mem w_doms node.label |> not then
-                  Hash_set.add s w;));
-    Hashtbl.add_exn res ~key:node.label ~data:s
+let dt dom = 
+  let inv_dom = inv_dom dom in 
+  let inv_dom_strict = Hashtbl.copy inv_dom in
+  Hashtbl.iteri inv_dom ~f:(fun ~key ~data -> 
+      Hash_set.remove data key); 
+  let inv_dom_strict_dom = Hashtbl.map inv_dom ~f:(fun d ->
+      Hash_set.fold d ~init:(Hash_set.create (module String)) ~f:(fun acc curr ->
+        (Hashtbl.find_exn inv_dom_strict curr) |> Hash_set.union acc  
+      ) 
+    )
   in
-  Hashtbl.iter dom_tree ~f:df_helper;
-  res 
-
-let dom_frontiers prog = 
-  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
-  let doms = doms prog blocks cfg_succ cfg_pred in 
-  let dom_tree = dom_tree doms in 
-  df doms dom_tree cfg_succ *)
+  Hashtbl.mapi inv_dom_strict ~f:(fun ~key:k ~data:d ->
+    Hash_set.filter d ~f:(fun e -> 
+      Hash_set.mem (Hashtbl.find_exn inv_dom_strict_dom k) e |> not))

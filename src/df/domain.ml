@@ -60,7 +60,7 @@ module ReachingDomain : Domain = struct
     | Ret _
     | Print _
     | Nop 
-    | Phi (_, _, _, _)-> t'
+    | Phi (_, _, _) -> t'
 end 
 
 module LiveVarsDomain : Domain = struct
@@ -107,8 +107,9 @@ module LiveVarsDomain : Domain = struct
       | Print (args) ->
         List.iter args ~f:(Hash_set.add t')
       | Nop -> ()
-      | Phi (_, arg1, _, arg2) -> Hash_set.add t' arg1;
-        Hash_set.add t' arg2
+      | Phi (dst, _, pihis) ->
+          List.iter phis ~f:(fun (_,arg) -> Hash_set.add t' arg);
+          Hash_set.remove t' dst
     end; t'
 end
 
@@ -258,7 +259,9 @@ module ConstantPropDomain : Domain = struct
       | Ret (None) -> ()
       | Print (args) ->
         process_args t' args
-      | Phi (_, arg1, _, arg2) -> process_args t' [arg1; arg2]
+      | Phi (dst, _, phis) -> 
+          process_args t' (List.map phis ~f:snd)
+          Hashtbl.update t' dst ~f:(fun _ -> Top)
       | Nop -> ()
     end; t'
 end
