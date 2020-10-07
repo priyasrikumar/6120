@@ -2,14 +2,9 @@ open Core
 open Yojson.Basic
 open Cfg 
 open Json_processor
-open Dce 
-open Lvn 
-open Df.Domain
-open Df.Dataflow
-
-module S = Ssa
 
 module DCE = struct 
+  open Dce
   let spec = Command.Spec.(empty)
 
   let run () = let prog = parse_in in 
@@ -24,6 +19,7 @@ let dce_cmd : Command.t =
     DCE.run 
 
 module LVN = struct 
+  open Lvn
   let spec = Command.Spec.(empty)
 
 
@@ -39,6 +35,8 @@ let lvn_cmd : Command.t =
     LVN.run 
 
 module LVN_DCE = struct 
+  open Lvn
+  open Dce
   let spec = Command.Spec.(empty)
 
   let run () = let prog = parse_in in 
@@ -55,6 +53,8 @@ let lvn_dce_cmd : Command.t =
     LVN_DCE.run 
 
 module Reach = struct 
+  open Df.Domain
+  open Df.Dataflow
   let spec = Command.Spec.(empty)
 
   module Reach = ForwardAnalysis(ReachingDomain)
@@ -71,6 +71,8 @@ let reach_cmd : Command.t =
     Reach.run 
 
 module LiveVars = struct 
+  open Df.Domain
+  open Df.Dataflow
   let spec = Command.Spec.(empty)
 
   module LiveVars = BackwardAnalysis(LiveVarsDomain)
@@ -86,7 +88,9 @@ let live_vars_cmd : Command.t =
     LiveVars.spec
     LiveVars.run 
 
-module ConstantPropagation = struct 
+module ConstantPropagation = struct
+  open Df.Domain
+  open Df.Dataflow 
   let spec = Command.Spec.(empty)
 
   module CPD = ForwardAnalysis(ConstantPropDomain)
@@ -147,7 +151,25 @@ module DomFrontiers = struct
 end
 
 let dom_frontier_cmd : Command.t = 
-  Command.basic_spec ~summary:"construct dominator tree"
+  Command.basic_spec ~summary:"construct domination frontiers"
+    DomFrontiers.spec
+    DomFrontiers.run 
+
+module SSA = struct 
+  open Ssa
+  let spec = Command.Spec.empty
+
+  let run () = let prog = parse_in in 
+  let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+  let dom = doms prog blocks cfg_succ cfg_pred in 
+  let dom_frontiers = df dom cfg_succ in 
+  let dom_tree = dt dom in
+  let ssa_prog, _ssa_blocks = to_ssa prog blocks cfg_succ dom_frontiers dom_tree in 
+  to_channel stdout (ssa_prog |> to_json) 
+end
+
+let to_ssa_cmd : Command.t = 
+  Command.basic_spec ~summary:"convert program to ssa form"
     DomFrontiers.spec
     DomFrontiers.run 
 
@@ -161,8 +183,9 @@ let main : Command.t =
     ("live-vars", live_vars_cmd);
     ("const-prop", cpd_cmd);
     ("doms", dom_cmd);
-    ("domtree", dom_tree_cmd); 
-    ("domfrontiers", dom_frontier_cmd)
+    ("dom-t", dom_tree_cmd); 
+    ("dom-f", dom_frontier_cmd);
+    ("to-ssa", to_ssa_cmd)
     ]
 
 let () = Command.run main
