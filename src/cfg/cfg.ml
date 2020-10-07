@@ -2,8 +2,11 @@ open Types
 open Core
 
 type blocks_t = (lbl * instr list) list
+type block_map_t = (lbl, instr list) Hashtbl.t
 type cfg_t = (lbl, lbl list) Hashtbl.t
 type dom_t = (arg, arg Hash_set.t) Hashtbl.t
+type dt_t = (lbl, lbl Hash_set.t) Base.Hashtbl.t
+type df_t = (lbl, lbl Hash_set.t) Hashtbl.t
 
 let gen_pref = "gen_lbl_"
 let gen_pref_len = String.length gen_pref
@@ -221,3 +224,22 @@ let dt dom =
   Hashtbl.mapi inv_dom_strict ~f:(fun ~key:k ~data:d ->
     Hash_set.filter d ~f:(fun e -> 
       Hash_set.mem (Hashtbl.find_exn inv_dom_strict_dom k) e |> not))
+
+let prog_from_block_list prog blocks cfg_succ =
+  let block_map = Hashtbl.of_alist_exn (module String) blocks in
+  List.map prog ~f:(fun func ->
+    let lbls = traverse_cfg_pre func.name cfg_succ in
+    let instrs' = List.concat_map lbls ~f:(Hashtbl.find_exn block_map)(*(fun lbl ->
+      if String.equal lbl func.name then Hashtbl.find_exn block_map lbl
+      else Label (lbl) :: Hashtbl.find_exn block_map lbl)*)
+    in
+    { func with instrs = instrs' })
+
+let prog_from_block_map prog block_map cfg_succ =
+  List.map prog ~f:(fun func ->
+    let lbls = traverse_cfg_pre func.name cfg_succ in
+    let instrs' = List.concat_map lbls ~f:(Hashtbl.find_exn block_map)(*(fun lbl ->
+      if String.equal lbl func.name then Hashtbl.find_exn block_map lbl
+      else Label (lbl) :: Hashtbl.find_exn block_map lbl)*)
+    in
+    { func with instrs = instrs' })
