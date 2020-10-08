@@ -39,12 +39,15 @@ module LVN_DCE = struct
   open Dce
   let spec = Command.Spec.(empty)
 
-  let run () = let prog = parse_in in 
-    Printf.printf "here";
-    let blocks, cfg_succ, _cfg_pred = extract_cfg prog in 
+  let _run prog blocks cfg_succ _cfg_pred =
     let prog', blocks', cfg_succ' = lvn prog blocks cfg_succ in 
     let res = dce prog' blocks' cfg_succ' in 
     to_channel stdout (res |> to_json) 
+
+  let run () =
+    let prog = parse_in in 
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+    _run prog blocks cfg_succ cfg_pred
 end
 
 let lvn_dce_cmd : Command.t = 
@@ -159,19 +162,44 @@ module SSA = struct
   open Ssa
   let spec = Command.Spec.empty
 
-  let run () = let prog = parse_in in 
+  let to_ssa () =
+    let prog = parse_in in 
     let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
     let dom = doms prog blocks cfg_succ cfg_pred in 
     let dt = dt dom in 
     let df = df dom cfg_succ in 
-    let (ssa_prog, _ssa_blocks) = to_ssa prog blocks cfg_succ df dt in 
+    let (ssa_prog, _ssa_blocks) = to_ssa prog blocks cfg_succ cfg_pred df dt in 
     to_channel stdout (ssa_prog |> to_json)
+
+  let _from_ssa () =
+    let prog = parse_in in 
+    let blocks, cfg_succ, cfg_pred = extract_cfg prog in 
+    let de_ssa_prog, de_ssa_blocks = from_ssa prog blocks cfg_succ in
+    de_ssa_prog, de_ssa_blocks, cfg_succ, cfg_pred
+
+  let from_ssa () =
+    let prog, _, _, _ = _from_ssa () in
+    to_json prog |> to_channel stdout
+  
+  let from_ssa_opt () =
+    let prog, blocks, cfg_succ, cfg_pred = _from_ssa () in
+    LVN_DCE._run prog blocks cfg_succ cfg_pred
 end
 
 let to_ssa_cmd : Command.t = 
   Command.basic_spec ~summary:"convert program to ssa form"
     SSA.spec
-    SSA.run 
+    SSA.to_ssa
+
+let from_ssa_cmd : Command.t =  
+  Command.basic_spec ~summary:"convert program from ssa form"
+    SSA.spec
+    SSA.from_ssa
+
+let from_ssa_opt_cmd : Command.t =
+  Command.basic_spec ~summary:"convert program from ssa form and optimize using LVN+DCE"
+    SSA.spec
+    SSA.from_ssa_opt
 
 let main : Command.t = 
   Command.group ~summary:"pick an optimization"
@@ -184,7 +212,9 @@ let main : Command.t =
      ("doms", dom_cmd);
      ("domtree", dom_tree_cmd); 
      ("domfrontiers", dom_frontier_cmd);
-     ("to-ssa", to_ssa_cmd)
+     ("to-ssa", to_ssa_cmd);
+     ("from-ssa", from_ssa_cmd);
+     ("from-ssa-opt", from_ssa_opt_cmd);
     ]
 
 let () = Command.run main
