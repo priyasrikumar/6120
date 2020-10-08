@@ -25,6 +25,8 @@ let mangle_instr instr =
   | Label lbl -> Label (add_pref lbl)
   | Jmp lbl -> Jmp (add_pref lbl)
   | Br (cond, lbl1, lbl2) -> Br (cond, add_pref lbl1, add_pref lbl2)
+  | Phi (dst, typ, args) ->
+    Phi (dst, typ, List.map args ~f:(fun (lbl,args) -> (add_pref lbl,args)))
   | _ -> instr 
 
 let make_blocks prog =
@@ -46,7 +48,7 @@ let make_blocks prog =
           | Jmp _ | Br _ | Ret _ ->
             blocks := (name,List.rev (mangle_instr instr::curr_block)) :: !blocks;
             (Stdlib.Stream.next gen_block_name, [])
-          | _ -> (name,instr::curr_block)
+          | _ -> (name,mangle_instr instr::curr_block)
         ) |>
                         (fun (name,block) -> blocks := (name,List.rev block)::!blocks)
   in
