@@ -8,3 +8,4 @@ hypothesis_*
 __pycache__
 .merlin
 **.DS_Store
+brilc
