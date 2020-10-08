@@ -168,8 +168,8 @@ module SSA = struct
     to_channel stdout (ssa_prog |> to_json)
 end
 
-let ssa_cmd : Command.t = 
-  Command.basic_spec ~summary:"convert to ssa"
+let to_ssa_cmd : Command.t = 
+  Command.basic_spec ~summary:"convert program to ssa form"
     SSA.spec
     SSA.run 
 
@@ -184,7 +184,7 @@ let main : Command.t =
      ("doms", dom_cmd);
      ("domtree", dom_tree_cmd); 
      ("domfrontiers", dom_frontier_cmd);
-     ("to-ssa", ssa_cmd)
+     ("to-ssa", to_ssa_cmd)
     ]
 
 let () = Command.run main

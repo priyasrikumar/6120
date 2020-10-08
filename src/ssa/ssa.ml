@@ -49,8 +49,9 @@ let insert_nodes prog blocks df =
   in
   let block_map = Hashtbl.of_alist_exn (module String) blocks in 
   List.iter vars ~f:(fun (v,t) ->
-      let defs_v = Hashtbl.find_exn defs v in 
-      Hash_set.iter defs_v ~f:(fun d -> 
+      let defs_v = Hashtbl.find_exn defs v in
+      let defs_v' = Hash_set.copy defs_v in 
+      Hash_set.iter defs_v' ~f:(fun d -> 
           let df = Hashtbl.find_exn df d in
           Hash_set.iter df ~f:(fun lbl ->
               let instrs = Hashtbl.find_exn block_map lbl in      
@@ -67,18 +68,23 @@ let insert_nodes prog blocks df =
               Hash_set.add defs_v lbl)));
   vars, block_map
 
-let mk_name (v,i) = Printf.sprintf "%s_%d" v i
+let elim_uneccesary_phis prog block_map cfg_succ =
+  List.iter prog ~f:(fun func ->
+    let lbls = traverse_cfg_pre func.name cfg_succ in 
+    let 
+  )
+
+let mk_name v i = Printf.sprintf "%s_%d" v i
 
 let process_arg stack arg =
-  Hashtbl.find_exn stack arg |>
-  Stack.top_exn |>
-  mk_name
+  Hashtbl.find_exn stack arg |> fst |> Stack.top_exn
 
 let process_dst stack dst =
-  let stack_dst = Hashtbl.find_exn stack dst in
-  let _, i_old = Stack.top_exn stack_dst in
-  Stack.push stack_dst (dst,i_old+1);
-  mk_name (dst,i_old+1)
+  let stack, stream = Hashtbl.find_exn stack dst in
+  let new_num = Stdlib.Stream.next stream in
+  let new_name = mk_name dst new_num in
+  Stack.push stack new_name;
+  new_name
 
 let update_intrs stack block =
   let process_arg arg = process_arg stack arg in
@@ -126,10 +132,11 @@ in
 block', !stack_hist
 
 let update_phi_reads stack l_prev block =
+  let process_arg dst = process_arg stack dst in
   List.map block ~f:(fun instr ->
     match instr with
     | Phi (dst, typ, phis) ->
-      let v' = Hashtbl.find_exn stack dst |> Stack.top_exn |> mk_name in
+      let v' = process_arg dst in
       let phis' = (l_prev,v') :: phis in 
       Phi (dst, typ, phis')
     | _ -> instr)
@@ -137,7 +144,7 @@ let update_phi_reads stack l_prev block =
 let update_func_args stack args =
   Option.(args >>| (fun args' ->
     List.map args' ~f:(fun (arg,typ) ->
-      (Hashtbl.find_exn stack arg |> Stack.top_exn |> mk_name,typ))))
+      (process_arg stack arg,typ))))
 
 let _stack_copy stack =
   let stack' = Hashtbl.create (module String) in
@@ -145,10 +152,11 @@ let _stack_copy stack =
     Hashtbl.update stack' k ~f:(fun _ -> Stack.copy d));
   stack'
 
-let rename_vars prog vars block_map cfg_succ dt =
+let _rename_vars prog vars block_map cfg_succ dt =
   let stack = Hashtbl.create (module String) in
   List.iter vars ~f:(fun (v,_) ->
-    Hashtbl.add_exn stack ~key:v ~data:(Stack.singleton (v,0)));
+    let counter = Stdlib.Stream.from (fun i -> Some (i+1)) in
+    Hashtbl.add_exn stack ~key:v ~data:((Stack.singleton v,counter)));
   let rec rename block_name =
     let block = Hashtbl.find_exn block_map block_name in
     let block', stack_hist = update_intrs stack block in
@@ -162,7 +170,8 @@ let rename_vars prog vars block_map cfg_succ dt =
     (* for b in children in dt *)
     let d_children = Hashtbl.find_exn dt block_name in
     Hash_set.iter d_children ~f:rename;
-    List.iter stack_hist ~f:(fun v -> ignore (Stack.pop_exn @@ Hashtbl.find_exn stack v))
+    List.iter stack_hist ~f:(fun v ->
+      ignore (Hashtbl.find_exn stack v |> fst |> Stack.pop_exn))
   in
   let prog' = List.map prog ~f:(fun func ->
     let func' = { func with args = update_func_args stack func.args } in
@@ -171,7 +180,18 @@ let rename_vars prog vars block_map cfg_succ dt =
   in
   prog', Hashtbl.to_alist block_map 
 
-let to_ssa prog blocks cfg_succ df dt =
-  let vars, block_map = insert_nodes prog blocks df in
-  let prog', blocks' = rename_vars prog vars block_map cfg_succ dt in
-  prog_from_block_list prog' blocks' cfg_succ, blocks'
+let to_ssa prog blocks cfg_succ df _dt =
+  let _vars, block_map = insert_nodes prog blocks df in
+  (*let prog', blocks' = rename_vars prog vars block_map cfg_succ dt in
+  prog_from_block_list prog' blocks' cfg_succ, blocks'*)
+  prog_from_block_map prog block_map cfg_succ, blocks
+
+(*let from_ssa prog blocks cfg_pred = 
+  List.iter blocks ~f:(fun (lbl, instrs) -> 
+    List.iter instrs ~f:(function 
+    | Phi (dst, typ, lst) -> List.iter lst 
+    ~f:(fun (lbl, arg) -> 
+    let preds = Hashtbl.find_exn cfg_pred lbl in 
+      
+    )
+    | _ -> ()))*)
