@@ -17,7 +17,7 @@ let is_gen_pref lbl =
 let gen_block_name = Stdlib.Stream.from (fun d ->
     Some (Printf.sprintf "%s%d" gen_pref d))
 
-let orig_pref = "og_lbl_"
+let orig_pref = "og_"
 let add_pref lbl = orig_pref^lbl
 
 let mangle_instr instr =
@@ -50,9 +50,12 @@ let make_blocks prog =
             (Stdlib.Stream.next gen_block_name, [])
           | _ -> (name,mangle_instr instr::curr_block)
         ) |>
-                        (fun (name,block) -> blocks := (name,List.rev block)::!blocks)
+                        (fun (name,block) -> blocks := (add_pref name,List.rev block)::!blocks)
   in
-  List.iter prog ~f:(fun func -> get_blocks func);
+  List.iter prog ~f:(fun func ->
+    match func.instrs with
+    | Label _ :: _ -> get_blocks func
+    | _ -> get_blocks ({func with instrs = Label func.name :: func.instrs}));
   List.rev !blocks
 (*List.filter (fun (name,block) -> block <> [])*)
 
