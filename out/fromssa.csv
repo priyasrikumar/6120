@@ -58,7 +58,7 @@ mat-mul,ssa,incorrect
 mat-mul,optssa,incorrect
 euclid,baseline,563
 euclid,ssa,648
-euclid,optssa,incorrect
+euclid,optssa,559
 pythagorean_triple,baseline,61518
 pythagorean_triple,ssa,69395
 pythagorean_triple,optssa,69394

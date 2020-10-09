@@ -74,7 +74,7 @@ bril2json < <filepath> | ./brilc to-ssa
 
 To convert a program from SSA form, replace `to-ssa` with `from-ssa`. To convert a program from SSA form with some optimizations, run with `from-ssa-opt`.
 
-The file `out/tossa.csv` and `out/fromssa.csv` show the results of running the code on the benchmarks. We only fail with `incorrect` for benchmarks using floats and pointers, which we do not support yet. Our `from-ssa-opt` runs has one error. 
+The file `out/tossa.csv` and `out/fromssa.csv` show the results of running the code on the benchmarks. We only fail with `incorrect` for benchmarks using floats and pointers, which we do not support yet.
 
 # Running a Bril Program
 
