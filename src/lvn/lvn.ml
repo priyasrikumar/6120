@@ -175,11 +175,17 @@ let lvn_block block =
               | _ -> Stdlib.invalid_arg "Should be unreachable."
             in
             Cst (dst, typ', cst')
-        | Some (_, (Un (Id, num) as new_exp), _) ->
-            let (_,_,arg') = Hashtbl.find_exn num_tbl num in
-            let new_val = new_val () in
-            update_tbls ~is_cst:true (new_val, new_exp, dst);
-            Unop (dst, typ, Id, arg')
+        | Some ((num, (Un (Id, num') as new_exp), arg') as entry) ->
+            let (_,_,arg'') as entry' = Hashtbl.find_exn num_tbl num' in
+            if is_tbl_val_eq entry entry' then 
+              let new_val = new_val () in
+              update_tbls ~is_cst:true (new_val, new_exp, dst);
+              Unop (dst, typ, Id, arg'')
+            else
+              let new_val = new_val () in
+              let new_exp = Un (Id, num) in
+              update_tbls ~is_cst:true (new_val, new_exp, arg');
+              Unop (dst, typ, Id, arg)
         | Some (num, _, arg') ->
             let new_val = new_val () in
             let new_exp = Un (Id, num) in
@@ -222,10 +228,17 @@ let lvn_block block =
     | Br (arg, lbl1, lbl2) ->
         Br (get_correct_call_arg arg, lbl1, lbl2)
     | Call (Some (dst), typ, name, Some (args)) ->
-        Call (Some (dst), typ, name, Some (List.map args ~f:get_correct_call_arg))
+        let instr' = Call (Some (dst), typ, name, Some (List.map args ~f:get_correct_call_arg)) in
+        let new_val = new_val () in
+        let new_exp = Un (Id, new_val) in
+        update_tbls (new_val, new_exp, dst);
+        instr'
     | Call (None, typ, name, Some (args)) ->
         Call (None, typ, name, Some (List.map args ~f:get_correct_call_arg))
-    | Call (Some (_), _, _, None) ->
+    | Call (Some (dst), _, _, None) ->
+        let new_val = new_val () in
+        let new_exp = Un (Id, new_val) in
+        update_tbls (new_val, new_exp, dst);
         instr
     | Call (None, _, _, None) ->
         instr
