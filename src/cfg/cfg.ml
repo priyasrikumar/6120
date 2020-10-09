@@ -42,15 +42,14 @@ let make_blocks prog =
                             blocks := (name,List.rev (Jmp lbl :: curr_block)) :: !blocks;
                             (lbl, []) end *)
             let lbl' = add_pref lbl in
-            if (is_gen_pref name && List.is_empty curr_block) |> not then
-              blocks := (name,List.rev (Jmp (lbl') :: curr_block)) :: !blocks;
-            (lbl', [Label (lbl')])
+            if (is_gen_pref name && List.is_empty curr_block) |> not then begin
+              blocks := (name,List.rev (Jmp (lbl') :: curr_block)) :: !blocks
+            end; (lbl', [Label (lbl')])
           | Jmp _ | Br _ | Ret _ ->
             blocks := (name,List.rev (mangle_instr instr::curr_block)) :: !blocks;
             (Stdlib.Stream.next gen_block_name, [])
-          | _ -> (name,mangle_instr instr::curr_block)
-        ) |>
-                        (fun (name,block) -> blocks := (add_pref name,List.rev block)::!blocks)
+          | _ -> (name,mangle_instr instr::curr_block))
+      |> (fun (name,block) -> blocks := (name,List.rev block)::!blocks)
   in
   List.iter prog ~f:(fun func ->
     match func.instrs with
