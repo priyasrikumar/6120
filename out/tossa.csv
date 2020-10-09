@@ -6,7 +6,7 @@ fizz-buzz,ssa,3754
 perfect,baseline,233
 perfect,ssa,299
 orders,baseline,5352
-orders,ssa,incorrect
+orders,ssa,6395
 collatz,baseline,169
 collatz,ssa,186
 sieve,baseline,3482

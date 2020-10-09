@@ -9,8 +9,8 @@ perfect,baseline,233
 perfect,ssa,304
 perfect,optssa,301
 orders,baseline,5352
-orders,ssa,incorrect
-orders,optssa,incorrect
+orders,ssa,6395
+orders,optssa,6395
 collatz,baseline,169
 collatz,ssa,186
 collatz,optssa,186
@@ -32,7 +32,7 @@ check-primes,optssa,8687
 fib,baseline,121
 fib,ssa,incorrect
 fib,optssa,incorrect
-ackermann,baseline,timeout
+ackermann,baseline,1464231
 ackermann,ssa,timeout
 ackermann,optssa,timeout
 gcd,baseline,46

@@ -38,7 +38,7 @@ bril2json < <filepath> | ./brilc [dce|lvn|lvn-dce] | bril2txt | bril2json
 
 This will produce a new optimized program from the original program specified in `<filepath>` and print it to `stdout`.
 
-Brench outputs are in the `out/` directory. We add some extraneous jumps sometimes, so we don't outperform the baseline in terms of dynamic instructions with DCE. But LVN or LVN + DCE works great! 
+Brench outputs are in the `out/` directory. We add some extraneous labels on occasion, because they're needed for from-SSA conversion (which uses LVN). 
 
 # Running Dataflow Analyses
 
@@ -74,7 +74,7 @@ bril2json < <filepath> | ./brilc to-ssa
 
 To convert a program from SSA form, replace `to-ssa` with `from-ssa`. To convert a program from SSA form with some optimizations, run with `from-ssa-opt`.
 
-The file `out/tossa.csv` and `out/fromssa.csv` show the results of running the code on the benchmarks. We only fail with `incorrect` for benchmarks using floats and pointers, which we do not support yet. Our `from-ssa-opt` runs have some errors. 
+The file `out/tossa.csv` and `out/fromssa.csv` show the results of running the code on the benchmarks. We only fail with `incorrect` for benchmarks using floats and pointers, which we do not support yet. Our `from-ssa-opt` runs has one error. 
 
 # Running a Bril Program
 
