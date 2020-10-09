@@ -184,7 +184,7 @@ let lvn_block block =
             else
               let new_val = new_val () in
               let new_exp = Un (Id, num) in
-              update_tbls ~is_cst:true (new_val, new_exp, arg');
+              update_tbls ~is_cst:false (new_val, new_exp, arg');
               Unop (dst, typ, Id, arg)
         | Some (num, _, arg') ->
             let new_val = new_val () in
