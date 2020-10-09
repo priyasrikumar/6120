@@ -65,15 +65,11 @@ let make_blocks prog =
               blocks := (name,List.rev block) :: !blocks)
   in
   List.map prog ~f:(fun func ->
-    let func' =
-       match func.instrs with
-      | Label _ :: _ -> func
-      | _ -> {func with instrs = Label func.name :: func.instrs}
-    in
+    let func' = {func with instrs = Label func.name :: func.instrs} in
     get_blocks func';
-    let blocks' = !blocks in
+    let blocks' = List.rev !blocks in
     blocks := [];
-    (func', List.rev blocks'))
+    (func', blocks'))
 
 let make_cfg_succ blocks =
   List.mapi ~f:(fun i (name,block) ->
@@ -273,8 +269,9 @@ let remove_phantom_jmps blocks =
   let rec fix blocks =
     let blocks' = List.filter_mapi blocks ~f:(fun i (lbl,block) ->
       let block' =
-        if List.is_empty block then []
-        else begin
+        match block with 
+        | [] -> []
+        | _ -> begin
           match List.length block - 1 |> List.nth_exn block with
           | Jmp (lbl') -> begin
             match List.nth blocks (i+1) with 
