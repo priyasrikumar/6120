@@ -1,6 +1,7 @@
 open Core 
 open Types
 open Lvn_types
+open Cfg
 
 let update_tbls (arg_tbl,num_tbl,exp_tbl) is_cst ((num,exp,var) as entry) = 
   Hashtbl.update arg_tbl var ~f:(function _ -> entry);
@@ -241,7 +242,9 @@ let lvn_block block =
         Phi (dst, typ, phis')
   )
 
-let lvn prog blocks cfg_succ =
-  let blocks' = List.map blocks ~f:(fun (name,instrs) -> (name,lvn_block instrs)) in
-  let prog' = Cfg.prog_from_block_list prog blocks' cfg_succ in
-  prog', blocks', cfg_succ 
+let lvn cfg =
+  List.map cfg ~f:(fun cfg_func ->
+    let blocks' = List.map cfg_func.blocks ~f:(fun (name,block) ->
+      (name,lvn_block block))
+    in
+    { cfg_func with blocks = blocks' })

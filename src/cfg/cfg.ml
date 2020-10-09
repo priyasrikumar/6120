@@ -1,12 +1,22 @@
 open Types
 open Core
 
-type blocks_t = (lbl * instr list) list
-type block_map_t = (lbl, instr list) Hashtbl.t
-type cfg_t = (lbl, lbl list) Hashtbl.t
-type dom_t = (arg, arg Hash_set.t) Hashtbl.t
-type dt_t = (lbl, lbl Hash_set.t) Base.Hashtbl.t
-type df_t = (lbl, lbl Hash_set.t) Hashtbl.t
+type cfg_func =
+  {
+    func: func ;
+    blocks : (lbl * instr list) list ;
+    cfg_succ : (lbl, lbl list) Hashtbl.t ;
+    cfg_pred : (lbl, lbl list) Hashtbl.t ;
+  }
+type cfg = cfg_func list
+
+type dom_t =
+  {
+    dom : (arg, arg Hash_set.t) Hashtbl.t ;
+    dt : (lbl, lbl Hash_set.t) Hashtbl.t ;
+    df : (lbl, lbl Hash_set.t) Hashtbl.t ;
+  }
+type doms = (lbl * dom_t) list
 
 let gen_pref = "gen_lbl_"
 let gen_pref_len = String.length gen_pref
@@ -51,12 +61,16 @@ let make_blocks prog =
           | _ -> (name,mangle_instr instr::curr_block))
       |> (fun (name,block) -> blocks := (name,List.rev block)::!blocks)
   in
-  List.iter prog ~f:(fun func ->
-    match func.instrs with
-    | Label _ :: _ -> get_blocks func
-    | _ -> get_blocks ({func with instrs = Label func.name :: func.instrs}));
-  List.rev !blocks
-(*List.filter (fun (name,block) -> block <> [])*)
+  List.map prog ~f:(fun func ->
+    let func' =
+       match func.instrs with
+      | Label _ :: _ -> func
+      | _ -> {func with instrs = Label func.name :: func.instrs}
+    in
+    get_blocks func';
+    let blocks' = !blocks in
+    blocks := [];
+    (func', List.rev blocks'))
 
 let make_cfg_succ blocks =
   List.mapi ~f:(fun i (name,block) ->
@@ -74,37 +88,43 @@ let make_cfg_succ blocks =
           | Some (lbl, _) -> (name,[lbl])
     ) blocks
 
-let traverse_cfg_pre start_lbl cfg =
+let _traverse_cfg_pre start_lbl cfg_succ =
   let seen_lbls = Hash_set.create (module String) in 
   let rec collect_lbls lbl acc =
     Hash_set.add seen_lbls lbl; 
-    let lbls = Hashtbl.find_exn cfg lbl in
+    let lbls = Hashtbl.find_exn cfg_succ lbl in
     lbl :: List.fold_left lbls ~init:acc ~f:(fun acc lbl ->
         if Hash_set.mem seen_lbls lbl then acc
         else collect_lbls lbl acc)
   in
   collect_lbls start_lbl [] |> List.stable_dedup
 
-let traverse_cfg_post start_lbl cfg =
+let traverse_cfg_pre start_lbl cfg =
+  _traverse_cfg_pre start_lbl cfg.cfg_succ
+
+let _traverse_cfg_post start_lbl cfg_succ =
   let seen_lbls = Hash_set.create (module String) in 
   let rec collect_lbls lbl acc =
     Hash_set.add seen_lbls lbl; 
-    let lbls = Hashtbl.find_exn cfg lbl in
+    let lbls = Hashtbl.find_exn cfg_succ lbl in
     List.fold_left lbls ~init:(lbl::acc) ~f:(fun acc lbl -> 
         if Hash_set.mem seen_lbls lbl then acc
         else collect_lbls lbl acc)
   in
   collect_lbls start_lbl [] |> List.stable_dedup
 
+let traverse_cfg_post start_lbl cfg =
+  _traverse_cfg_post start_lbl cfg.cfg_succ
+
 let traverse_cfg_post_rev start_lbl cfg =
   traverse_cfg_post start_lbl cfg |> List.rev
 
-let filter_cfg_succ prog cfg_succ =
-  let reachable = Hash_set.of_list (module String) @@ 
-    List.concat_map prog ~f:(fun func ->
-        traverse_cfg_pre func.name cfg_succ)
+let filter_cfg_succ func_name cfg_succ =
+  let reachable = _traverse_cfg_pre func_name cfg_succ
+    |> Hash_set.of_list (module String)
   in
-  Hashtbl.filter_keys cfg_succ ~f:(fun key -> Hash_set.mem reachable key)
+  Hashtbl.filter_keys_inplace cfg_succ
+    ~f:(fun key -> Hash_set.mem reachable key)
 
 let make_cfg_pred cfg_succ =
   let pred_map = Hashtbl.create (module String) in
@@ -149,44 +169,23 @@ let add_phantom_jmps blocks cfg =
 
 let extract_cfg prog =
   let blocks = make_blocks prog in
-  let cfg_succ = make_cfg_succ blocks in
-  let cfg_succ_map = Hashtbl.of_alist_exn (module String) cfg_succ |>
-                     filter_cfg_succ prog
+  let cfg_succs = List.map blocks ~f:(fun (func,blocks) ->
+      (func,blocks,make_cfg_succ blocks))
   in
-  let cfg_pred_map = make_cfg_pred cfg_succ_map in
-  let blocks = add_phantom_jmps blocks cfg_succ_map in
-  blocks, cfg_succ_map, cfg_pred_map
-
-let doms prog _blocks cfg_succ cfg_pred =
-  let dom = Hashtbl.create (module String) in
-  let rev_post_order = List.concat_map prog ~f:(fun func ->
-      traverse_cfg_post_rev func.name cfg_succ)
+  let cfg_succs_map = List.map cfg_succs ~f:(fun (func,blocks,cfg_succ) ->
+      let cfg_succ_map = Hashtbl.of_alist_exn (module String) cfg_succ in
+      filter_cfg_succ func.name cfg_succ_map;
+      (func,blocks,cfg_succ_map))                
   in
-  (*List.iter rev_post_order ~f:(fun lbl ->
-      Hashtbl.add_exn dom ~key:lbl ~data:(Hash_set.create (module String)));*)
-  let dom_change = ref true in
-  while !dom_change do
-    dom_change := false; 
-    List.iter rev_post_order ~f:(fun vertex -> 
-        let preds = Hashtbl.find_exn cfg_pred vertex in
-        let curr_dom = match preds with
-          | [] -> Hash_set.create (module String)
-          | _ -> 
-            let preds' = List.filter_map preds ~f:(Hashtbl.find dom) in
-            match preds' with
-            | [] -> Hash_set.create (module String)
-            | h :: [] -> Hash_set.copy h
-            | h :: t -> List.fold t ~init:(Hash_set.copy h) ~f:Hash_set.inter
-        in
-        Hash_set.add curr_dom vertex;
-        Hashtbl.find_and_call dom vertex
-          ~if_found:(fun prev_dom 
-                      -> dom_change := !dom_change ||
-                                       Hash_set.equal prev_dom curr_dom |> not)
-          ~if_not_found:(fun _ -> dom_change := true);
-        Hashtbl.update dom vertex ~f:(fun _ -> curr_dom))
-  done;
-  dom 
+  let cfg = List.map cfg_succs_map ~f:(fun (func,blocks,cfg_succ) ->
+    {
+      func = func ;
+      blocks = add_phantom_jmps blocks cfg_succ ;
+      cfg_succ = cfg_succ ;
+      cfg_pred = make_cfg_pred cfg_succ ;
+    })
+  in
+  cfg
 
 let inv_dom dom =
   let inv_dom = Hashtbl.create (module String) in
@@ -199,7 +198,8 @@ let inv_dom dom =
               | Some set -> Hash_set.add set k; set)));
   inv_dom
 
-let df dom cfg_succ =
+let df dom cfg =
+  let cfg_succ = cfg.cfg_succ in 
   let inv_dom = inv_dom dom in
   let df = Hashtbl.create (module String) in
   Hashtbl.iter_keys dom ~f:(fun k ->
@@ -229,19 +229,50 @@ let dt dom =
     Hash_set.filter d ~f:(fun e -> 
       Hash_set.mem (Hashtbl.find_exn inv_dom_strict_dom k) e |> not))
 
-let prog_from_block_list prog blocks cfg_succ =
-  let block_map = Hashtbl.of_alist_exn (module String) blocks in
-  List.map prog ~f:(fun func ->
-    let lbls = traverse_cfg_pre func.name cfg_succ in
-    let instrs' = List.concat_map lbls ~f:(Hashtbl.find_exn block_map)(*(fun lbl ->
-      if String.equal lbl func.name then Hashtbl.find_exn block_map lbl
-      else Label (lbl) :: Hashtbl.find_exn block_map lbl)*)
+let doms cfg =
+  List.map cfg ~f:(fun cfg_func ->
+    let func_name = cfg_func.func.name in 
+    let cfg_pred = cfg_func.cfg_pred in
+    let dom = Hashtbl.create (module String) in
+    let rev_post_order = traverse_cfg_post_rev func_name cfg_func in
+    (*List.iter rev_post_order ~f:(fun lbl ->
+        Hashtbl.add_exn dom ~key:lbl ~data:(Hash_set.create (module String)));*)
+    let dom_change = ref true in
+    while !dom_change do
+      dom_change := false; 
+      List.iter rev_post_order ~f:(fun vertex -> 
+          let preds = Hashtbl.find_exn cfg_pred vertex in
+          let curr_dom = match preds with
+            | [] -> Hash_set.create (module String)
+            | _ -> 
+              let preds' = List.filter_map preds ~f:(Hashtbl.find dom) in
+              match preds' with
+              | [] -> Hash_set.create (module String)
+              | h :: [] -> Hash_set.copy h
+              | h :: t -> List.fold t ~init:(Hash_set.copy h) ~f:Hash_set.inter
+          in
+          Hash_set.add curr_dom vertex;
+          Hashtbl.find_and_call dom vertex
+            ~if_found:(fun prev_dom 
+                        -> dom_change := !dom_change ||
+                                         Hash_set.equal prev_dom curr_dom |> not)
+            ~if_not_found:(fun _ -> dom_change := true);
+          Hashtbl.update dom vertex ~f:(fun _ -> curr_dom))
+    done;
+    let dom_info = 
+      {
+        dom = dom ;
+        dt = dt dom ;
+        df = df dom cfg_func ;
+      }
     in
-    { func with instrs = instrs' })
+    (func_name,dom_info)) 
 
-let prog_from_block_map prog block_map cfg_succ =
-  List.map prog ~f:(fun func ->
-    let lbls = traverse_cfg_pre func.name cfg_succ in
+let prog_from_cfg cfg =
+  List.map cfg ~f:(fun cfg_func ->
+    let func = cfg_func.func in 
+    let block_map = Hashtbl.of_alist_exn (module String) cfg_func.blocks in
+    let lbls = _traverse_cfg_pre func.name cfg_func.cfg_succ in
     let instrs' = List.concat_map lbls ~f:(Hashtbl.find_exn block_map)(*(fun lbl ->
       if String.equal lbl func.name then Hashtbl.find_exn block_map lbl
       else Label (lbl) :: Hashtbl.find_exn block_map lbl)*)

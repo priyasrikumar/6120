@@ -1,2 +1,1 @@
-val lvn : Types.prog -> Cfg.blocks_t -> Cfg.cfg_t ->
-  (Types.prog * Cfg.blocks_t * Cfg.cfg_t)
+val lvn : Cfg.cfg -> Cfg.cfg

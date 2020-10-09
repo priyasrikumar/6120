@@ -7,7 +7,7 @@ module type AnalysisType = sig
   type t
 
   val print : Format.formatter -> t -> unit
-  val algo : blocks_t -> cfg_t -> cfg_t -> t
+  val algo : cfg -> t
 end
 
 module AnalysisBase (D : Domain) = struct
@@ -17,7 +17,7 @@ module AnalysisBase (D : Domain) = struct
     out_b : D.t;
     instrs : (instr * D.t) list;
   }
-  type t = (lbl * data) list 
+  type lbl_to_data = (lbl * data) list
   (*type t = (lbl * D.t * D.t) list*) 
 
   let print ~is_back:flag fmt t =
@@ -58,7 +58,10 @@ module AnalysisBase (D : Domain) = struct
       let next_block = Hashtbl.find_exn workhash name' in
       Deque.enqueue_front worklist (name',next_block))
 
-  let algo ~is_back:flag (blocks : blocks_t) cfg_succ cfg_pred =
+  let algo ~is_back:flag cfg =
+    let blocks = cfg.blocks in
+    let cfg_succ = cfg.cfg_succ in
+    let cfg_pred = cfg.cfg_pred in
     let blocks' = List.map blocks ~f:(fun (name,instrs) ->
       let instrs' = List.map instrs ~f:(fun instr -> (instr,D.init ())) in
       let instrs'' = if flag then List.rev instrs' else instrs' in
@@ -96,20 +99,32 @@ end
 
 module ForwardAnalysis (D : Domain) : AnalysisType = struct
   include AnalysisBase(D)
+  type t = (lbl * lbl_to_data) list
 
-  let print fmt t = print ~is_back:false fmt t
+  let print fmt t =
+    List.iter t ~f:(fun (name,t) ->
+      Format.printf "@[<hv 0>func = %s:@ @[" name;
+      print ~is_back:false fmt t;
+      Format.printf "@]@]@ ")
 
-  let algo blocks cfg_succ cfg_pred =
-    algo ~is_back:false blocks cfg_succ cfg_pred
+  let algo cfg =
+    List.map cfg ~f:(fun cfg_func ->
+      (cfg_func.func.name,algo ~is_back:false cfg_func))
 end
 
 module BackwardAnalysis (D : Domain) : AnalysisType = struct
   include AnalysisBase(D)
+  type t = (lbl * lbl_to_data) list
 
-  let print fmt t = print ~is_back:true fmt t
+  let print fmt t =
+    List.iter t ~f:(fun (name,t) ->
+      Format.printf "@[<hv 0>func = %s:@ @[" name;
+      print ~is_back:true fmt t;
+      Format.printf "@]@]@ ")
 
-  let algo blocks cfg_succ cfg_pred =
-    algo ~is_back:true blocks cfg_succ cfg_pred
+  let algo cfg =
+    List.map cfg ~f:(fun cfg_func ->
+      (cfg_func.func.name,algo ~is_back:true cfg_func))
 end
 
   (*type data = {

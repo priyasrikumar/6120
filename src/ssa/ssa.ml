@@ -202,19 +202,20 @@ let insert_phis phi_map block_map =
     | [] -> phis
     | hd :: tl -> hd :: phis @ tl)
 
-let to_ssa prog blocks cfg_succ cfg_pred df dt =
-  let funcs, blocks = List.map prog ~f:(fun func -> 
-    let lbls = traverse_cfg_pre func.name cfg_succ |> Hash_set.of_list (module String) in
-    let blocks' = List.filter blocks ~f:(fun (lbl,_) -> Hash_set.mem lbls lbl) in
-    let func_args = match func.args with None -> [] | Some (args) -> args in
-    let phi_map = insert_nodes func.name func_args blocks' df in
-    let block_map = rename_vars func_args func.name phi_map blocks' cfg_succ dt in
-    remove_bad_phis phi_map cfg_pred;
+let to_ssa cfg doms =
+  let doms_map = Hashtbl.of_alist_exn (module String) doms in
+  List.map cfg ~f:(fun cfg_func ->
+    let func_name = cfg_func.func.name in
+    let dom_info = Hashtbl.find_exn doms_map func_name in 
+    let blocks = cfg_func.blocks in
+    let func_args = match cfg_func.func.args with None -> [] | Some (args) -> args in
+    let phi_map = insert_nodes func_name func_args blocks dom_info.df in
+    let block_map = rename_vars func_args func_name phi_map blocks cfg_func.cfg_succ dom_info.dt in
+    remove_bad_phis phi_map cfg_func.cfg_pred;
     let block_map' = insert_phis phi_map block_map in
-    let func'' = prog_from_block_map [func] block_map' cfg_succ |> List.hd_exn in 
-    (func'', Hashtbl.to_alist block_map')) |> List.unzip
-  in
-  funcs, List.concat blocks
+    let blocks' = List.map blocks ~f:(fun (lbl,_) -> (lbl,Hashtbl.find_exn block_map' lbl)) in
+    { cfg_func with blocks = blocks'}
+  )
 
 let func_from_ssa blocks =
   let block_map = Hashtbl.of_alist_exn (module String) blocks in
@@ -240,13 +241,9 @@ let func_from_ssa blocks =
       | _ -> true));
   block_map
 
-
-let from_ssa prog blocks cfg_succ = 
-  let funcs, blocks = List.map prog ~f:(fun func ->
-    let lbls = traverse_cfg_pre func.name cfg_succ |> Hash_set.of_list (module String) in
-    let blocks' = List.filter blocks ~f:(fun (lbl,_) -> Hash_set.mem lbls lbl) in
-    let block_map = func_from_ssa blocks' in
-    let func' = prog_from_block_map [func] block_map cfg_succ |> List.hd_exn in
-    (func', Hashtbl.to_alist block_map)) |> List.unzip
-  in
-  funcs, List.concat blocks
+let from_ssa cfg = 
+  List.map cfg ~f:(fun cfg_func ->
+    let blocks = cfg_func.blocks in 
+    let block_map = func_from_ssa blocks in
+    let blocks' = List.map blocks ~f:(fun (lbl,_) -> (lbl,Hashtbl.find_exn block_map lbl)) in
+    { cfg_func with blocks = blocks'})
