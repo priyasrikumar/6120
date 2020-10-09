@@ -38,6 +38,6 @@ sum-bits,lvn,73
 mat-mul,baseline,1990407
 mat-mul,lvn,incorrect
 euclid,baseline,563
-euclid,lvn,incorrect
+euclid,lvn,564
 pythagorean_triple,baseline,61518
 pythagorean_triple,lvn,61519
