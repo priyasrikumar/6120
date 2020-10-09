@@ -54,12 +54,15 @@ let make_blocks prog =
             let lbl' = add_pref lbl in
             if (is_gen_pref name && List.is_empty curr_block) |> not then begin
               blocks := (name,List.rev (Jmp (lbl') :: curr_block)) :: !blocks
-            end; (lbl', [Label (lbl')])
+            end;
+            (lbl', [Label (lbl')])
           | Jmp _ | Br _ | Ret _ ->
             blocks := (name,List.rev (mangle_instr instr::curr_block)) :: !blocks;
             (Stdlib.Stream.next gen_block_name, [])
           | _ -> (name,mangle_instr instr::curr_block))
-      |> (fun (name,block) -> blocks := (name,List.rev block)::!blocks)
+      |> (fun (name,block) ->
+            if is_gen_pref name |> not then 
+              blocks := (name,List.rev block) :: !blocks)
   in
   List.map prog ~f:(fun func ->
     let func' =
@@ -152,19 +155,17 @@ let add_phantom_jmps blocks cfg =
           in
           (name,block@jmp)
       else
-        match List.length block - 1 |> List.nth block with
-        | None -> (name,[Jmp (List.nth_exn blocks (i+1) |> fst)])
-        | Some instr -> match instr with
-          | Jmp _ | Br _ | Ret _ -> (name,block)
-          | _ -> match List.nth blocks (i+1) with
-            | None -> (name,block@[Ret None])
-            | Some (lbl, _) ->
-              let jmp =
-                match Hashtbl.find_exn cfg lbl with 
-                | [] -> [Ret None]
-                | hd :: _ -> [Jmp hd]
-              in
-              (name,block@jmp)
+        match List.length block - 1 |> List.nth_exn block with
+        | Jmp _ | Br _ | Ret _ -> (name,block)
+        | _ -> match List.nth blocks (i+1) with
+          | None -> (name,block@[Ret None])
+          | Some (lbl, _) ->
+            let jmp =
+              match Hashtbl.find_exn cfg lbl with 
+              | [] -> [Ret None]
+              | hd :: _ -> [Jmp hd]
+            in
+            (name,block@jmp)
     ) blocks
 
 let extract_cfg prog =
@@ -253,9 +254,9 @@ let doms cfg =
           in
           Hash_set.add curr_dom vertex;
           Hashtbl.find_and_call dom vertex
-            ~if_found:(fun prev_dom 
-                        -> dom_change := !dom_change ||
-                                         Hash_set.equal prev_dom curr_dom |> not)
+            ~if_found:(fun prev_dom ->
+              dom_change := !dom_change ||
+              Hash_set.equal prev_dom curr_dom |> not)
             ~if_not_found:(fun _ -> dom_change := true);
           Hashtbl.update dom vertex ~f:(fun _ -> curr_dom))
     done;
@@ -270,11 +271,12 @@ let doms cfg =
 
 let prog_from_cfg cfg =
   List.map cfg ~f:(fun cfg_func ->
-    let func = cfg_func.func in 
+    { cfg_func.func with instrs = List.concat_map cfg_func.blocks ~f:snd }
+    (*let func = cfg_func.func in 
     let block_map = Hashtbl.of_alist_exn (module String) cfg_func.blocks in
     let lbls = _traverse_cfg_pre func.name cfg_func.cfg_succ in
     let instrs' = List.concat_map lbls ~f:(Hashtbl.find_exn block_map)(*(fun lbl ->
       if String.equal lbl func.name then Hashtbl.find_exn block_map lbl
       else Label (lbl) :: Hashtbl.find_exn block_map lbl)*)
     in
-    { func with instrs = instrs' })
+    { func with instrs = instrs' }*))

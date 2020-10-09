@@ -7,38 +7,28 @@ let used_vars_in_instrs used_vars instrs =
     ~f:(fun instr ->
       match instr with 
       | Label _ -> ()
-      | Cst (dst, _, _) ->
-          Hashtbl.update used_vars dst ~f:(function _ -> false)
-      | Binop (dst, _, _, arg1, arg2) ->
-          Hashtbl.update used_vars dst ~f:(function _ -> false);
-          Hashtbl.update used_vars arg1 ~f:(function _ -> true); 
-          Hashtbl.update used_vars arg2 ~f:(function _ -> true)
-      | Unop (dst, _, _, arg) ->
-          Hashtbl.update used_vars dst ~f:(function _ -> false);
-          Hashtbl.update used_vars arg ~f:(function _ -> true)
+      | Cst (_, _, _) -> ()
+      | Binop (_, _, _, arg1, arg2) ->
+          Hash_set.add used_vars arg1; 
+          Hash_set.add used_vars arg2
+      | Unop (_, _, _, arg) ->
+          Hash_set.add used_vars arg
       | Jmp (_) -> ()
       | Br (arg, _, _) ->
-          Hashtbl.update used_vars arg ~f:(function _ -> true)
-      | Call (Some (dst), _, _, Some (args)) ->
-          Hashtbl.update used_vars dst ~f:(function _ -> false); 
+          Hash_set.add used_vars arg
+      | Call (_, _, _, Some (args)) ->
           List.iter args 
-            ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true))
-      | Call (Some (dst), _, _, None) ->
-          Hashtbl.update used_vars dst ~f:(function _ -> false)
-      | Call (None, _, _, Some (args)) ->
-          List.iter args 
-            ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true))
-      | Call (None, _, _, None) -> ()
+            ~f:(fun arg -> Hash_set.add used_vars arg)
+      | Call (_, _, _, None) -> ()
       | Ret (Some (arg)) ->
-          Hashtbl.update used_vars arg ~f:(function _ -> true)
+          Hash_set.add used_vars arg
       | Ret (None) -> ()
       | Nop -> ()
       | Print (args) ->
-          List.iter args ~f:(fun arg -> Hashtbl.update used_vars arg ~f:(function _ -> true))
-      | Phi (dst, _, phis) -> 
-          Hashtbl.update used_vars dst ~f:(function _ -> false); 
+          List.iter args ~f:(fun arg -> Hash_set.add used_vars arg)
+      | Phi (_, _, phis) -> 
           List.iter phis ~f:(fun (_,arg) ->
-            Hashtbl.update used_vars arg ~f:(function _ -> true)))
+            Hash_set.add used_vars arg))
 
 let instrs_to_eliminate cfg_func = 
   (*let block_map = Hashtbl.of_alist_exn (module String) cfg.blocks in
@@ -47,7 +37,7 @@ let instrs_to_eliminate cfg_func =
   List.iter blocks ~f:(fun lbl -> 
     Hashtbl.find_exn block_map lbl |> used_vars_in_instrs used_vars);
   used_vars*)
-  let used_vars = Hashtbl.create (module String) in
+  let used_vars = Hash_set.create (module String) in
   List.iter cfg_func.blocks ~f:(fun (_,block) ->
     used_vars_in_instrs used_vars block);
   used_vars
@@ -64,14 +54,13 @@ let filter_instrs used_vars cfg_func =
   let blocks' = List.map cfg_func.blocks ~f:(fun (lbl,block) ->
     let block' = List.filter block ~f:(fun instr ->
         match get_var instr with
-        | Some d ->
-            let to_del = Hashtbl.find_exn used_vars d |> not in
-            is_deleted := to_del;
-            not to_del
+        | Some d -> Hash_set.mem used_vars d
         | None -> true)
     in
+    is_deleted := !is_deleted || (List.length block) <> (List.length block');
     (lbl,block'))
   in
+
   (blocks', !is_deleted)
 
 let global_elim_instrs cfg_func =
@@ -146,7 +135,7 @@ let dce cfg =
       if stop then cfg_func
       else
         let cfg', is_changed = global_elim_instrs cfg_func in
-        let cfg'' = fix_local cfg' false in
-        fix_global cfg'' (not is_changed)
+        let _cfg'' = fix_local cfg' false in
+        fix_global cfg' (not is_changed)
     in
     fix_global cfg_func false)

@@ -10,11 +10,10 @@ module DCE = struct
   open Dce
   let spec = Command.Spec.(empty)
 
-  let _dce_with_cfg cfg =
-    dce cfg
+  let _dce_with_cfg cfg = dce cfg
 
   let _dce prog =
-    let cfg = extract_cfg prog in
+    let cfg = extract_cfg prog in 
     _dce_with_cfg cfg
 
   let run () =
@@ -33,11 +32,10 @@ module LVN = struct
   open Lvn
   let spec = Command.Spec.(empty)
 
-  let _lvn_with_cfg cfg =
-    lvn cfg
+  let _lvn_with_cfg cfg = lvn cfg
 
   let _lvn prog =
-    let cfg = extract_cfg prog in
+    let cfg = extract_cfg prog in 
     _lvn_with_cfg cfg
 
   let run () =
@@ -61,7 +59,7 @@ module LVN_DCE = struct
   let _lvn_dce prog =
     let cfg = extract_cfg prog in
     _lvn_dce_with_cfg cfg
-
+    
   let run () =
     let prog = Json_processor.parse_in in 
     let res = _lvn_dce prog in
