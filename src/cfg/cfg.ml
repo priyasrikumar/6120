@@ -267,11 +267,41 @@ let doms cfg =
         df = df dom cfg_func ;
       }
     in
-    (func_name,dom_info)) 
+    (func_name,dom_info))
+
+let remove_phantom_jmps blocks =
+  let rec fix blocks =
+    let blocks' = List.filter_mapi blocks ~f:(fun i (lbl,block) ->
+      let block' =
+        if List.is_empty block then []
+        else begin
+          match List.length block - 1 |> List.nth_exn block with
+          | Jmp (lbl') -> begin
+            match List.nth blocks (i+1) with 
+            | None -> block
+            | Some (lbl'',_) ->
+              if String.equal lbl' lbl'' then
+                let block' = List.take block (List.length block - 1) in
+                if List.is_empty block' then []
+                else block'
+              else  
+                block
+            end
+          | _ -> block
+        end
+      in
+      if List.is_empty block' then None
+      else Some (lbl,block'))
+    in
+    if List.length blocks = List.length blocks' then blocks'
+    else fix blocks'
+  in
+  fix blocks
 
 let prog_from_cfg cfg =
   List.map cfg ~f:(fun cfg_func ->
-    { cfg_func.func with instrs = List.concat_map cfg_func.blocks ~f:snd }
+    let blocks' = remove_phantom_jmps cfg_func.blocks in
+    { cfg_func.func with instrs = List.concat_map blocks' ~f:snd }
     (*let func = cfg_func.func in 
     let block_map = Hashtbl.of_alist_exn (module String) cfg_func.blocks in
     let lbls = _traverse_cfg_pre func.name cfg_func.cfg_succ in
