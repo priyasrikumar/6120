@@ -56,6 +56,24 @@ bril2json < <filepath> | ./brilc [reach|live-vars|const-prop]
 
 This will produce the results of the analysis for each basic block from the original program specified in `<filepath>` and print it to `stdout`. Technically, we associate with each instruction an element of the domain so we could print more fine-grained instruction level information as well.
 
+# Running Dominance Utilities 
+
+To find dominators for a functions, get the dominance tree, or compute the dominance frontier for each node, run 
+```
+bril2json < <filepath> | ./brilc [doms|domtree|domfrontiers]
+```
+respectively.
+
+# Converting to and from SSA
+
+To convert a program to SSA form, run
+
+```
+bril2json < <filepath> | ./brilc to-ssa
+```
+
+To convert a program from SSA form, replace `to-ssa` with `from-ssa`. To convert a program from SSA form with some optimizations, run with `from-ssa-opt`.
+
 # Running a Bril Program
 
 ```
