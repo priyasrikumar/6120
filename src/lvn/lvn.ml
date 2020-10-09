@@ -175,17 +175,23 @@ let lvn_block block =
               | _ -> Stdlib.invalid_arg "Should be unreachable."
             in
             Cst (dst, typ', cst')
-        | Some ((num, (Un (Id, num') as new_exp), arg') as entry) ->
-            let (_,_,arg'') as entry' = Hashtbl.find_exn num_tbl num' in
-            if is_tbl_val_eq entry entry' then 
-              let new_val = new_val () in
-              update_tbls ~is_cst:true (new_val, new_exp, dst);
-              Unop (dst, typ, Id, arg'')
-            else
+        | Some ((num, (Un (Id, num') as new_exp), arg') as entry) -> begin
+            let default () =
               let new_val = new_val () in
               let new_exp = Un (Id, num) in
-              update_tbls ~is_cst:false (new_val, new_exp, arg');
+              update_tbls ~is_cst:true (new_val, new_exp, arg');
               Unop (dst, typ, Id, arg)
+            in
+            match Hashtbl.find num_tbl num' with
+            | None -> default ()
+            | Some ((_,_,arg'') as entry') ->
+              if is_tbl_val_eq entry entry' then 
+                let new_val = new_val () in
+                update_tbls ~is_cst:true (new_val, new_exp, dst);
+                Unop (dst, typ, Id, arg'')
+              else
+                default ()
+          end
         | Some (num, _, arg') ->
             let new_val = new_val () in
             let new_exp = Un (Id, num) in
