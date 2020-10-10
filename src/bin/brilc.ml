@@ -147,29 +147,29 @@ module Doms = struct
     let cfg = extract_cfg prog in
     doms cfg
 
-  let print_doms doms =
-    Format.printf "@[";
+  let _print_doms doms =
+    Format.printf "@[<hv 0>";
     List.iter doms ~f:(fun (lbl,dom) -> 
-      Format.printf "@[Doms of %s:@ @[" lbl;
+      Format.printf "@[<hov 2>Doms of %s:@ @[" lbl;
         Hashtbl.iteri dom.dom ~f:(fun ~key:key ~data:data -> 
-      Format.printf "@[%s %a@]@ " key Types.pp_lbl_list (Hash_set.to_list data));
+      Format.printf "@[%s -> %a;@]@ " key Types.pp_lbl_list (Hash_set.to_list data));
       Format.printf "@]@]@ ");
-    Format.printf "@]"
+    Format.printf "@]@ "
 
-  let print_dom_trees doms =
-    Format.printf "@[";
+  let _print_dom_trees doms =
+    Format.printf "@[<hv 0>";
     List.iter doms ~f:(fun (lbl,dom) -> 
-      Format.printf "@[Dom tree of %s:@ @[" lbl;
+      Format.printf "@[<hov 2>Dom tree of %s:@ @[" lbl;
       Hashtbl.iteri dom.dt ~f:(fun ~key ~data -> 
         let domlst = Hash_set.to_list data in 
-        Format.printf "@[%s %a@]@ " key Types.pp_lbl_list domlst);
+        Format.printf "@[%s -> %a;@]@ " key Types.pp_lbl_list domlst);
       Format.printf "@]@]@ ");
-    Format.printf "@]"
+    Format.printf "@]@ "
 
-  let print_dom_frontiers doms =
-    Format.printf "@[";
+  let _print_dom_frontiers doms =
+    Format.printf "@[<hv 0>";
     List.iter doms ~f:(fun (lbl,dom) -> 
-      Format.printf "@[Dom frontier of %s:@ @[" lbl;
+      Format.printf "@[<hov 2>Dom frontier of %s:@ @[<hov 2>" lbl;
       let df = Hashtbl.to_alist dom.df in 
       let df = List.map df ~f:(fun (lbl,df) -> (lbl,Hash_set.to_list df)) in
       Format.printf "@[%a@]" Types.pp_dom_list df;
@@ -177,11 +177,26 @@ module Doms = struct
     Format.printf "@]"
 
   let print_all doms =
-    print_doms doms;
-    print_dom_trees doms;
-    print_dom_frontiers doms
+    _print_doms doms;
+    _print_dom_trees doms;
+    _print_dom_frontiers doms
 
-  let run () =
+  let print_doms () =
+    let prog = Json_processor.parse_in in
+    let res = _doms prog in
+    _print_doms res
+
+  let print_dom_trees () =
+    let prog = Json_processor.parse_in in
+    let res = _doms prog in
+    _print_dom_trees res
+
+  let print_dom_frontiers () =
+    let prog = Json_processor.parse_in in
+    let res = _doms prog in
+    _print_dom_frontiers res
+
+  let dom_run_all () =
     let prog = Json_processor.parse_in in
     let res = _doms prog in
     print_all res
@@ -191,7 +206,22 @@ end
 let dom_cmd : Command.t = 
   Command.basic_spec ~summary:"compute dominators"
     Doms.spec
-    Doms.run 
+    Doms.print_doms
+
+let dom_t_cmd : Command.t = 
+  Command.basic_spec ~summary:"compute dominance trees"
+    Doms.spec
+    Doms.print_dom_trees
+
+let dom_f_cmd : Command.t = 
+  Command.basic_spec ~summary:"compute dominance frontiers"
+    Doms.spec
+    Doms.print_dom_frontiers
+
+let dom_all_cmd : Command.t =
+  Command.basic_spec ~summary:"compute all aspects of dominators"
+    Doms.spec
+    Doms.dom_run_all
 
 module SSA = struct 
   open Ssa
@@ -252,6 +282,9 @@ let main : Command.t =
      ("live-vars", live_vars_cmd);
      ("const-prop", cpd_cmd);
      ("doms", dom_cmd);
+     ("dom-tree", dom_t_cmd);
+     ("dom-frontiers", dom_f_cmd);
+     ("dom-all", dom_all_cmd);
      ("to-ssa", to_ssa_cmd);
      ("from-ssa", from_ssa_cmd);
      ("from-ssa-opt", from_ssa_opt_cmd);

@@ -18,7 +18,6 @@ module AnalysisBase (D : Domain) = struct
     instrs : (instr * D.t) list;
   }
   type lbl_to_data = (lbl * data) list
-  (*type t = (lbl * D.t * D.t) list*) 
 
   let print ~is_back:flag fmt t =
     if flag then begin
