@@ -58,9 +58,9 @@ This will produce the results of the analysis for each basic block from the orig
 
 # Running Dominance Utilities 
 
-To find dominators for a functions, get the dominance tree, or compute the dominance frontier for each node, run 
+To find dominators for a functions, get the dominance tree, compute the dominance frontier or all three (dominators, tree, frontiers) for each node, run 
 ```
-bril2json < <filepath> | ./brilc [doms|domtree|domfrontiers]
+bril2json < <filepath> | ./brilc [doms|dom-tree|dom-frontiers|dom-all]
 ```
 respectively.
 
@@ -72,7 +72,7 @@ To convert a program to SSA form, run
 bril2json < <filepath> | ./brilc to-ssa
 ```
 
-To convert a program from SSA form, replace `to-ssa` with `from-ssa`. To convert a program from SSA form with some optimizations, run with `from-ssa-opt`.
+To convert a program from SSA form, replace `to-ssa` with `from-ssa`. To convert a program from SSA form with some optimizations (LVN+DCE), run with `from-ssa-opt`.
 
 The file `out/tossa.csv` and `out/fromssa.csv` show the results of running the code on the benchmarks. We only fail with `incorrect` for benchmarks using floats and pointers, which we do not support yet.
 
