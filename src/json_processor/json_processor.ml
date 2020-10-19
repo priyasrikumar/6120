@@ -34,6 +34,14 @@ let to_typ = function
   | `String "bool" -> Bool
   | json -> raise_not_impl "Invalid type" json
 
+let rec to_ptr_typ json =
+  match json |> Util.member "ptr" with
+  | `String "int" -> Ptr (Base (Int))  
+  | `String "bool" -> Ptr (Base (Bool))
+  | more ->
+    let t = to_ptr_typ more in
+    Ptr (t)
+
 let to_typ_opt = function
   | `Null -> None
   | json -> Some (to_typ json)
@@ -45,6 +53,7 @@ let parse_instr json =
   | `Null -> begin
       let dst () = json |> member "dest" |> to_string in
       let typ () = json |> member "type" |> to_typ in
+      let ptr_typ () = json |> member "type" | to_ptr_typ in
       match json |> member "op" with
       | `String "const" ->
         let typ = typ () in 
@@ -112,6 +121,18 @@ let parse_instr json =
         let args = json |> member "args" |> to_list |> List.map to_string in
         let phis = List.map2 (fun lbl arg -> (lbl,arg)) labels args in
         Phi (dst (), typ (), phis)
+      | `String "alloc" ->
+        let arg = json |> member "args" |> to_list |> List.hd |> to_string in
+        Alloc (dst (), ptr_typ (), arg)
+      | `String "free" ->
+        let arg = json |> member "args" |> to_list |> List.hd |> to_string in
+        Free (arg)
+      | `String "store" ->
+        let args = json |> member "args" |> to_list |> List.map to_string in
+        let arg1 = args |> List.hd in
+        let arg2 = args |> List.hd |> List.hd in
+        Store (arg1, arg2)
+      | 
       | _ ->
         raise_invalid_arg "Invalid op" json
     end

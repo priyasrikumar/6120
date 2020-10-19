@@ -12,6 +12,12 @@ type cst =
   | BoolC of bool
 [@@deriving show, eq, sexp]
 
+type ptr_typ =
+  | Base of typ
+  | Ptr of ptr_typ
+
+type offset = int
+
 type lbl = string [@@deriving show, eq, sexp]
 type arg = string [@@deriving show, eq, sexp]
 type dst = string [@@deriving show, eq, sexp]
@@ -52,6 +58,11 @@ type instr =
   | Print of arg list
   | Nop
   | Phi of dst * typ * (lbl * arg) list
+  | Alloc of dst * ptr_typ * arg
+  | Free of dst (* must be a pointer, no type checking *)
+  | Store of arg * arg
+  | Load of dst option * 
+  | Ptradd of dst * offset
 [@@deriving show, eq, sexp]
 
 type func = {
