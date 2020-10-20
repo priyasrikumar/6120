@@ -38,7 +38,7 @@ bril2json < <filepath> | ./brilc [dce|lvn|lvn-dce] | bril2txt | bril2json
 
 This will produce a new optimized program from the original program specified in `<filepath>` and print it to `stdout`.
 
-Brench outputs are in the `out/` directory. We add some extraneous labels on occasion, because they're needed for from-SSA conversion (which uses LVN). 
+Brench outputs are in the `out/` directory. We add some extraneous labels on occasion as they are needed to ensure unique labelling when introducing new labels and also to create a single entry label for a function. Entry labels are necessary so that we can convert programs to SSA. These new labels are always followed by jumps in our IR but we then eliminate them (whenever there is fall-through) when recreating the program from our CFG. So, the labels make the program more verbose but should not impact performance.
 
 # Running Dataflow Analyses
 

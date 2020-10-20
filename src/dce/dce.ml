@@ -28,7 +28,21 @@ let used_vars_in_instrs used_vars instrs =
           List.iter args ~f:(fun arg -> Hash_set.add used_vars arg)
       | Phi (_, _, phis) -> 
           List.iter phis ~f:(fun (_,arg) ->
-            Hash_set.add used_vars arg))
+            Hash_set.add used_vars arg)
+      | Alloc (_, _, arg) ->
+          Hash_set.add used_vars arg
+      | Free (arg) ->
+          Hash_set.add used_vars arg
+      | Store (arg1, arg2) ->
+          Hash_set.add used_vars arg1;
+          Hash_set.add used_vars arg2
+      | Load (_, _, arg) ->
+          Hash_set.add used_vars arg
+      | Ptradd (_, _, arg1, arg2) ->
+          Hash_set.add used_vars arg1;
+          Hash_set.add used_vars arg2
+      | Ptrcpy (_, _, arg) ->
+          Hash_set.add used_vars arg)
 
 let instrs_to_eliminate cfg_func = 
   (*let block_map = Hashtbl.of_alist_exn (module String) cfg.blocks in
@@ -45,9 +59,12 @@ let instrs_to_eliminate cfg_func =
 let get_var instr =
   match instr with
   | Cst (d,_, _) | Binop (d, _, _,_ , _)
-  | Unop (d, _, _, _) | Call (Some d,_, _, _)-> Some (d)
+  | Unop (d, _, _, _) | Call (Some d,_, _, _)
+  | Alloc (d, _, _) | Load (d, _, _)
+  | Ptradd (d, _, _, _) | Ptrcpy (d, _, _) -> Some (d)
   | Label _| Jmp (_) | Br (_, _ , _ ) | Ret (_) | Print (_)
-  | Call (None, _, _, _)| Nop -> None | Phi (_, _, _) -> None
+  | Call (None, _, _, _)| Nop -> None | Phi (_, _, _)
+  | Free (_) | Store (_, _) -> None
 
 let filter_instrs used_vars cfg_func =
   let is_deleted = ref false in 
@@ -91,6 +108,12 @@ let local_elim_instrs instrs =
       | Nop -> [], None
       | Print (args) -> args, None
       | Phi (dst, _, phis) -> List.map phis ~f:snd, Some (dst)
+      | Alloc (dst, _, arg) -> [arg], Some (dst)
+      | Free (arg) -> [arg], None
+      | Store (arg1, arg2) -> [arg1; arg2], None
+      | Load (dst, _, arg) -> [arg], Some (dst)
+      | Ptradd (dst, _, arg1, arg2) -> [arg1; arg2], Some (dst)
+      | Ptrcpy (dst, _, arg) -> [arg], Some (dst)
     in
     (* remove uses *)
     List.iter uses ~f:(Hashtbl.remove last_def);

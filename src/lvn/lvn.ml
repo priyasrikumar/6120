@@ -259,7 +259,12 @@ let lvn_block block =
     | Phi (dst, typ, phis) ->
         let phis' = List.map phis ~f:(fun (lbl,arg) -> (lbl,get_correct_call_arg arg)) in
         Phi (dst, typ, phis')
-  )
+    | Alloc (_, _, _) -> instr
+    | Free _ -> instr
+    | Store (_, _) -> instr
+    | Load (_, _, _) -> instr
+    | Ptradd (_, _, _, _) -> instr
+    | Ptrcpy (_, _, _) -> instr)
 
 let lvn cfg =
   List.map cfg ~f:(fun cfg_func ->

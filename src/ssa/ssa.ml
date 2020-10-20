@@ -3,7 +3,7 @@ open Cfg
 open Types
 
 type phi_tmp =
-  Phi' of dst * typ * (lbl * arg) list
+  Phi' of dst * union_typ * (lbl * arg) list
 
 let update_defs var lbl defs =
   Hashtbl.update defs var ~f:(function
@@ -17,25 +17,42 @@ let vars_of_process_defs lbl defs block =
       | Label _ -> acc
       | Cst (dst, typ, _) -> 
         update_defs dst lbl defs; 
-        (dst, typ) :: acc
+        (dst, Val typ) :: acc
       | Binop (dst, typ, _, _, _) ->
         update_defs dst lbl defs; 
-        (dst, typ) :: acc
+        (dst, Val typ) :: acc
       | Unop (dst, typ, _, _) -> 
         update_defs dst lbl defs;
-        (dst, typ) :: acc
+        (dst, Val typ) :: acc
       | Jmp _ -> acc
       | Br (_, _, _) -> acc
       | Call (Some (dst), Some (typ), _, _) ->
         update_defs dst lbl defs;
-        (dst, typ) :: acc
+        (dst, Val typ) :: acc
       | Call (_, _, _, _) -> acc
       | Ret (_) -> acc
       | Nop -> acc
       | Print (_) -> acc
-      | Phi (dst, typ, _phis) ->
+      | Phi (dst, Val (typ), _phis) ->
         update_defs dst lbl defs;
-        (dst,typ) :: acc 
+        (dst, Val typ) :: acc
+      | Phi (dst, Ptr (typ), _phis) ->
+        update_defs dst lbl defs;
+        (dst, Ptr typ) :: acc
+      | Alloc (dst, typ, _) ->
+        update_defs dst lbl defs;
+        (dst, Ptr typ) :: acc
+      | Free _ -> acc
+      | Store (_, _) -> acc
+      | Load (dst, typ, _) ->
+        update_defs dst lbl defs;
+        (dst, Ptr typ) :: acc
+      | Ptradd (dst, typ, _, _) ->
+        update_defs dst lbl defs;
+        (dst, Ptr typ) :: acc
+      | Ptrcpy (dst, typ, _) ->
+        update_defs dst lbl defs;
+        (dst, Ptr typ) :: acc
     ) 
 
 let insert_nodes func_name func_args blocks df =
@@ -124,7 +141,25 @@ let update_intrs stack counters block =
     | Nop -> instr
     | Phi (dst, typ, phis) ->
         let phis' = phis (*List.map phis ~f:(fun (lbl,arg) -> (lbl,process_arg arg)) *)in
-        Phi (process_dst dst, typ, phis'))
+        Phi (process_dst dst, typ, phis')
+    | Alloc (dst, typ, arg) ->
+        let arg' = process_arg arg in
+        Alloc (process_dst dst, typ, arg')
+    | Free (arg) ->
+        let arg' = process_arg arg in
+        Free (arg')
+    | Store (arg1, arg2) ->
+        let arg1', arg2' = process_arg arg1, process_arg arg2 in
+        Store (arg1', arg2')
+    | Load (dst, typ, arg) ->
+        let arg' = process_arg arg in
+        Load (process_dst dst, typ, arg')
+    | Ptradd (dst, typ, arg1, arg2) ->
+        let arg1', arg2' = process_arg arg1, process_arg arg2 in
+        Ptradd (process_dst dst, typ, arg1', arg2')
+    | Ptrcpy (dst, typ, arg) ->
+        let arg' = process_arg arg in
+        Ptrcpy (process_dst dst, typ, arg'))
 in
 block'
 
@@ -221,7 +256,11 @@ let func_from_ssa blocks =
   let block_map = Hashtbl.of_alist_exn (module String) blocks in
   let add_copies dst typ args =
     List.iter args ~f:(fun (lbl,arg) ->
-      let instr = Unop (dst, typ, Id, arg) in 
+      let instr = 
+        match typ with
+        | Val typ -> Unop (dst, typ, Id, arg)
+        | Ptr typ -> Ptrcpy (dst, typ, arg)
+      in
       let new_instrs = 
         match Hashtbl.find_exn block_map lbl |> List.rev with
         | [] -> [instr]

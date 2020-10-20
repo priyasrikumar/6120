@@ -15,8 +15,12 @@ type cst =
 type ptr_typ =
   | Base of typ
   | Ptr of ptr_typ
+[@@deriving show, eq, sexp]
 
-type offset = int
+type union_typ =
+  | Val of typ
+  | Ptr of ptr_typ
+[@@deriving show, eq, sexp]
 
 type lbl = string [@@deriving show, eq, sexp]
 type arg = string [@@deriving show, eq, sexp]
@@ -57,18 +61,19 @@ type instr =
   | Ret of arg option
   | Print of arg list
   | Nop
-  | Phi of dst * typ * (lbl * arg) list
+  | Phi of dst * union_typ * (lbl * arg) list
   | Alloc of dst * ptr_typ * arg
-  | Free of dst (* must be a pointer, no type checking *)
+  | Free of arg
   | Store of arg * arg
-  | Load of dst option * 
-  | Ptradd of dst * offset
+  | Load of dst * ptr_typ  * arg
+  | Ptradd of dst * ptr_typ * arg * arg
+  | Ptrcpy of dst * ptr_typ * arg
 [@@deriving show, eq, sexp]
 
 type func = {
   name : string ;
-  args : ((arg * typ) list) option ;
-  rtyp : typ option ;
+  args : ((arg * union_typ) list) option ;
+  rtyp : union_typ option ;
   instrs : instr list ;
 }
 [@@deriving show, eq, sexp]

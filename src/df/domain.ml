@@ -49,7 +49,11 @@ module ReachingDomain : Domain = struct
     | Cst (dst, _, _)
     | Binop (dst, _, _, _, _)
     | Unop (dst, _, _, _)
-    | Call (Some (dst), _, _, _) ->    
+    | Call (Some (dst), _, _, _) 
+    | Alloc (dst, _, _)
+    | Load (dst, _, _) 
+    | Ptradd (dst, _, _, _)
+    | Ptrcpy (dst, _, _) ->    
       Hashtbl.update t' dst ~f:(function
           | None -> [instr]
           | Some _ -> [instr]); t'
@@ -60,7 +64,9 @@ module ReachingDomain : Domain = struct
     | Ret _
     | Print _
     | Nop 
-    | Phi (_, _, _) -> t'
+    | Phi (_, _, _)
+    | Free _ 
+    | Store (_, _) -> t'
 end 
 
 module LiveVarsDomain : Domain = struct
@@ -110,6 +116,24 @@ module LiveVarsDomain : Domain = struct
       | Phi (dst, _, phis) ->
           List.iter phis ~f:(fun (_,arg) -> Hash_set.add t' arg);
           Hash_set.remove t' dst
+      | Alloc (dst, _, arg) ->
+        Hash_set.add t' arg;
+        Hash_set.remove t' dst
+      | Free (arg) ->
+        Hash_set.add t' arg
+      | Store (arg1, arg2) ->
+        Hash_set.add t' arg1;
+        Hash_set.add t' arg2
+      | Load (dst, _, arg) ->
+        Hash_set.add t' arg;
+        Hash_set.remove t' dst
+      | Ptradd (dst, _, arg1, arg2) -> 
+        Hash_set.add t' arg1;
+        Hash_set.add t' arg2;
+        Hash_set.remove t' dst
+      | Ptrcpy (dst, _, arg) ->
+        Hash_set.add t' arg;
+        Hash_set.remove t' dst
     end; t'
 end
 
@@ -263,5 +287,21 @@ module ConstantPropDomain : Domain = struct
         process_args t' (List.map phis ~f:snd);
         Hashtbl.update t' dst ~f:(fun _ -> Top)
       | Nop -> ()
+      | Alloc (dst, _, arg) ->
+        process_args t' [arg];
+        Hashtbl.update t' dst ~f:(fun _ -> Bot)
+      | Free (arg) ->
+        process_args t' [arg]
+      | Store (arg1, arg2) ->
+        process_args t' [arg1; arg2]
+      | Load (dst, _, arg) ->
+        process_args t' [arg];
+        Hashtbl.update t' dst ~f:(fun _ -> Bot)
+      | Ptradd (dst, _, arg1, arg2) ->
+        process_args t' [arg1; arg2];
+        Hashtbl.update t' dst ~f:(fun _ -> Bot)
+      | Ptrcpy (dst, _, arg) ->
+        process_args t' [arg];
+        Hashtbl.update t' dst ~f:(fun _ -> Bot)
     end; t'
 end
