@@ -53,9 +53,9 @@ loopfact,optssa,131
 sum-bits,baseline,73
 sum-bits,ssa,87
 sum-bits,optssa,86
-mat-mul,baseline,timeout
-mat-mul,ssa,timeout
-mat-mul,optssa,timeout
+mat-mul,baseline,1990407
+mat-mul,ssa,2393064
+mat-mul,optssa,2257957
 euclid,baseline,563
 euclid,ssa,648
 euclid,optssa,559

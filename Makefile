@@ -9,10 +9,15 @@ clean:
 
 build:
 	dune build src/bin/brilc.exe
+
 rebuild: clean brilc
 
 test: rebuild 
 	brench dce.toml > out/dce.csv
+	brench lvn.toml > out/lvn.csv
+	brench lvndce.toml > out/lvndce.csv
+	brench tossa.toml > out/tossa.csv
+	brench fromssa.toml > out/fromssa.csv
 
 test-dce: rebuild
 		bril2json < $F | ./brilc dce | bril2txt 
