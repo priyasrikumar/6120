@@ -16,13 +16,13 @@ recfact,lvn,105
 sqrt,baseline,322
 sqrt,lvn,incorrect
 eight-queens,baseline,1006454
-eight-queens,lvn,incorrect
+eight-queens,lvn,1006455
 check-primes,baseline,8468
 check-primes,lvn,8469
 fib,baseline,121
-fib,lvn,incorrect
+fib,lvn,121
 ackermann,baseline,1464231
-ackermann,lvn,1464232
+ackermann,lvn,timeout
 gcd,baseline,46
 gcd,lvn,46
 binary-fmt,baseline,100
@@ -36,7 +36,7 @@ loopfact,lvn,117
 sum-bits,baseline,73
 sum-bits,lvn,73
 mat-mul,baseline,1990407
-mat-mul,lvn,incorrect
+mat-mul,lvn,1990407
 euclid,baseline,563
 euclid,lvn,564
 pythagorean_triple,baseline,61518

@@ -57,7 +57,7 @@ type instr =
   | Unop of dst * typ * unop * arg
   | Jmp of lbl
   | Br of arg * lbl * lbl
-  | Call of dst option * typ option * string * arg list option
+  | Call of dst option * union_typ option * string * arg list option
   | Ret of arg option
   | Print of arg list
   | Nop

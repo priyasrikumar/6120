@@ -6,6 +6,22 @@ let print_res res =
   |> Json_processor.to_json
   |> Yojson.Basic.to_channel stdout
 
+module CFG = struct 
+  let spec = Command.Spec.empty
+
+  let run () = 
+    let prog = Json_processor.parse_in in 
+    let res = extract_cfg prog in 
+    let prog' = prog_from_cfg res in 
+    Json_processor.to_json prog' 
+    |> Yojson.Basic.to_channel stdout
+end
+
+let cfg_cmd : Command.t = 
+  Command.basic_spec ~summary:"test cfg conv"
+    CFG.spec
+    CFG.run
+
 module DCE = struct 
   open Dce
   let spec = Command.Spec.(empty)
@@ -59,7 +75,7 @@ module LVN_DCE = struct
   let _lvn_dce prog =
     let cfg = extract_cfg prog in
     _lvn_dce_with_cfg cfg
-    
+
   let run () =
     let prog = Json_processor.parse_in in 
     let res = _lvn_dce prog in
@@ -150,30 +166,30 @@ module Doms = struct
   let _print_doms doms =
     Format.printf "@[<hv 0>";
     List.iter doms ~f:(fun (lbl,dom) -> 
-      Format.printf "@[<hov 2>Doms of %s:@ @[" lbl;
+        Format.printf "@[<hov 2>Doms of %s:@ @[" lbl;
         Hashtbl.iteri dom.dom ~f:(fun ~key:key ~data:data -> 
-      Format.printf "@[%s -> %a;@]@ " key Types.pp_lbl_list (Hash_set.to_list data));
-      Format.printf "@]@]@ ");
+            Format.printf "@[%s -> %a;@]@ " key Types.pp_lbl_list (Hash_set.to_list data));
+        Format.printf "@]@]@ ");
     Format.printf "@]@ "
 
   let _print_dom_trees doms =
     Format.printf "@[<hv 0>";
     List.iter doms ~f:(fun (lbl,dom) -> 
-      Format.printf "@[<hov 2>Dom tree of %s:@ @[" lbl;
-      Hashtbl.iteri dom.dt ~f:(fun ~key ~data -> 
-        let domlst = Hash_set.to_list data in 
-        Format.printf "@[%s -> %a;@]@ " key Types.pp_lbl_list domlst);
-      Format.printf "@]@]@ ");
+        Format.printf "@[<hov 2>Dom tree of %s:@ @[" lbl;
+        Hashtbl.iteri dom.dt ~f:(fun ~key ~data -> 
+            let domlst = Hash_set.to_list data in 
+            Format.printf "@[%s -> %a;@]@ " key Types.pp_lbl_list domlst);
+        Format.printf "@]@]@ ");
     Format.printf "@]@ "
 
   let _print_dom_frontiers doms =
     Format.printf "@[<hv 0>";
     List.iter doms ~f:(fun (lbl,dom) -> 
-      Format.printf "@[<hov 2>Dom frontier of %s:@ @[<hov 2>" lbl;
-      let df = Hashtbl.to_alist dom.df in 
-      let df = List.map df ~f:(fun (lbl,df) -> (lbl,Hash_set.to_list df)) in
-      Format.printf "@[%a@]" Types.pp_dom_list df;
-      Format.printf "@]@]@ ");
+        Format.printf "@[<hov 2>Dom frontier of %s:@ @[<hov 2>" lbl;
+        let df = Hashtbl.to_alist dom.df in 
+        let df = List.map df ~f:(fun (lbl,df) -> (lbl,Hash_set.to_list df)) in
+        Format.printf "@[%a@]" Types.pp_dom_list df;
+        Format.printf "@]@]@ ");
     Format.printf "@]"
 
   let print_all doms =
@@ -275,7 +291,8 @@ let from_ssa_opt_cmd : Command.t =
 
 let main : Command.t = 
   Command.group ~summary:"pick an optimization"
-    [("dce", dce_cmd);
+    [("cfg", cfg_cmd);
+     ("dce", dce_cmd);
      ("lvn", lvn_cmd);
      ("lvn-dce", lvn_dce_cmd);
      ("reach", reach_cmd);

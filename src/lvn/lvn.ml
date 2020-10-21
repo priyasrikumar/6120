@@ -241,11 +241,13 @@ let lvn_block block =
         instr'
     | Call (None, typ, name, Some (args)) ->
         Call (None, typ, name, Some (List.map args ~f:get_correct_call_arg))
-    | Call (Some (dst), _, _, None) ->
+    | Call (Some (dst), Some (Val (_t)), _, None) ->
         let new_val = new_val () in
         let new_exp = Un (Id, new_val) in
         update_tbls (new_val, new_exp, dst);
         instr
+    | Call (Some _, Some (Ptr _), _, None) -> instr
+    | Call (Some _, None, _, None) -> instr
     | Call (None, _, _, None) ->
         instr
     | Ret (Some arg) ->

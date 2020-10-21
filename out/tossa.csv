@@ -16,11 +16,11 @@ recfact,ssa,105
 sqrt,baseline,322
 sqrt,ssa,incorrect
 eight-queens,baseline,1006454
-eight-queens,ssa,incorrect
+eight-queens,ssa,1106353
 check-primes,baseline,8468
 check-primes,ssa,8883
 fib,baseline,121
-fib,ssa,incorrect
+fib,ssa,157
 ackermann,baseline,1464231
 ackermann,ssa,1464232
 gcd,baseline,46
@@ -36,7 +36,7 @@ loopfact,ssa,135
 sum-bits,baseline,73
 sum-bits,ssa,87
 mat-mul,baseline,1990407
-mat-mul,ssa,incorrect
+mat-mul,ssa,2393064
 euclid,baseline,563
 euclid,ssa,648
 pythagorean_triple,baseline,61518

@@ -28,7 +28,7 @@ let vars_of_process_defs lbl defs block =
       | Br (_, _, _) -> acc
       | Call (Some (dst), Some (typ), _, _) ->
         update_defs dst lbl defs;
-        (dst, Val typ) :: acc
+        (dst, typ) :: acc
       | Call (_, _, _, _) -> acc
       | Ret (_) -> acc
       | Nop -> acc

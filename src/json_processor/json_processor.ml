@@ -104,7 +104,12 @@ let parse_instr json =
           | `Null -> None
           | _ -> Some (dst ())
         in
-        let typ = if dst = None then None else Some (typ ()) in
+        let typ = if dst = None then None else
+          try
+            ignore (json |> member "type" |> to_assoc);
+            Some (Ptr (ptr_typ ()))
+          with Type_error (_, _) -> Some (Val (typ ()))
+       in
         let name = json |> member "funcs" |> to_list |> function
           | name :: [] -> name |> to_string
           | _ -> raise_invalid_arg "Invalid function call" json
@@ -238,6 +243,10 @@ let ptr_typ_to_json ptr_typ =
   in
   to_json ptr_typ
 
+let rev_union_typ = function 
+  | Val v -> rev_typ v 
+  | Ptr p -> ptr_typ_to_json p 
+
 let load_typ_to_json ptr_typ =
   match ptr_typ with
   | Base (t) -> rev_typ t
@@ -300,7 +309,7 @@ let instr_to_json instr =
         ("dest", `String d) ;
         ("funcs", `List [`String n]) ;
         ("op", `String "call") ;
-        ("type", Option.get t |> rev_typ) ;
+        ("type", Option.get t |> rev_union_typ) ;
       ] 
     | Call (Some (d), t, n, Some (args)) ->
       [
@@ -308,7 +317,7 @@ let instr_to_json instr =
         ("dest", `String (d)) ;
         ("funcs", `List [`String n]) ;
         ("op", `String "call") ;
-        ("type", Option.get t |> rev_typ) ;
+        ("type", Option.get t |> rev_union_typ) ;
       ]
     | Ret (None) -> [ ("op", `String "ret") ]
     | Ret (Some (arg)) ->
@@ -361,7 +370,7 @@ let instr_to_json instr =
       [
         ("args", `List [`String arg]) ;
         ("dest", `String (d)) ;
-        ("op", `String ("free")) ;
+        ("op", `String ("load")) ;
         ("type", load_typ_to_json pt)
       ]
     | Ptradd (d, pt, arg1, arg2) ->
