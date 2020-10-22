@@ -271,7 +271,6 @@ module SSA = struct
     let prog = Json_processor.parse_in in
     let res = _from_ssa_opt prog in
     print_res res
-
 end
 
 let to_ssa_cmd : Command.t = 
@@ -289,6 +288,26 @@ let from_ssa_opt_cmd : Command.t =
     SSA.spec
     SSA.from_ssa_opt
 
+module NatLoop = struct 
+  let spec = Command.Spec.(empty)
+
+  let _natloops prog =
+    let cfg = extract_cfg prog in
+    let doms = doms cfg in
+    List.iter2_exn cfg doms ~f:(fun cfg_func (_,dom_func) -> 
+      Cfg.natloops cfg_func dom_func |>
+      List.iter ~f:(fun lst -> Format.printf "@[%a@]@ " Types.pp_arg_list lst))
+
+  let run () =
+    let prog = Json_processor.parse_in in 
+    _natloops prog
+end
+
+let natloop_cmd : Command.t =
+  Command.basic_spec ~summary:"get natural loops"
+    NatLoop.spec
+    NatLoop.run
+
 let main : Command.t = 
   Command.group ~summary:"pick an optimization"
     [("cfg", cfg_cmd);
@@ -305,6 +324,7 @@ let main : Command.t =
      ("to-ssa", to_ssa_cmd);
      ("from-ssa", from_ssa_cmd);
      ("from-ssa-opt", from_ssa_opt_cmd);
+     ("natloops", natloop_cmd)
     ]
 
 let () = Command.run main

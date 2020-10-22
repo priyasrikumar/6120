@@ -5,7 +5,7 @@ brilc: _build/default/src/bin/brilc.exe
 	sudo cp $< $@
 
 clean: 
-		rm -fr _build
+		rm -rf _build
 
 build:
 	dune build src/bin/brilc.exe

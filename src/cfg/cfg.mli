@@ -26,3 +26,7 @@ val traverse_cfg_post : lbl -> cfg_func -> lbl list
 val doms : cfg -> doms
 
 val prog_from_cfg : cfg -> prog
+
+val scc : cfg_func -> arg list list
+
+val natloops : cfg_func -> dom_t -> arg list list
