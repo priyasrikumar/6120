@@ -65,7 +65,12 @@ let make_blocks prog =
                               blocks := (name,List.rev block) :: !blocks)
   in
   List.map prog ~f:(fun func ->
-      let func' = {func with instrs = Label func.name :: func.instrs} in
+      let instrs' =
+        match List.hd func.instrs with
+        | Some (Label _) | None -> func.instrs
+        | Some (_) -> Label func.name :: func.instrs
+      in 
+      let func' = {func with instrs = instrs'} in
       get_blocks func';
       let blocks' = List.rev !blocks in
       blocks := [];
