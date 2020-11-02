@@ -1,6 +1,11 @@
 open Core
 open Types
 
+type result =
+  | Reaching of (arg * instr_list) list
+  | LiveVars of arg list
+  | ConstProp of (arg * string) list
+
 module type Domain = sig
   type t
 
@@ -14,6 +19,8 @@ module type Domain = sig
   val merge : t -> t -> t
 
   val transfer : instr -> t -> t 
+
+  val get_result : t -> result 
 end
 
 module ReachingDomain : Domain = struct
@@ -67,6 +74,8 @@ module ReachingDomain : Domain = struct
     | Phi (_, _, _)
     | Free _ 
     | Store (_, _) -> t'
+
+  let get_result t = Reaching (Hashtbl.to_alist t)
 end 
 
 module LiveVarsDomain : Domain = struct
@@ -135,6 +144,8 @@ module LiveVarsDomain : Domain = struct
         Hash_set.add t' arg;
         Hash_set.remove t' dst
     end; t'
+
+  let get_result t = LiveVars (Hash_set.to_list t)
 end
 
 module ConstantPropDomain : Domain = struct
@@ -304,4 +315,8 @@ module ConstantPropDomain : Domain = struct
         process_args t' [arg];
         Hashtbl.update t' dst ~f:(fun _ -> Bot)
     end; t'
+
+  let get_result t = ConstProp(
+    Hashtbl.to_alist t
+    |> List.map ~f:(fun (a,b) -> (a,show_prop_lattice b)))
 end

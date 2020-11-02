@@ -8,6 +8,7 @@ module type AnalysisType = sig
 
   val print : Format.formatter -> t -> unit
   val algo : cfg -> t
+  val get_result : t -> (lbl * (lbl * (result * result)) list) list
 end
 
 module AnalysisBase (D : Domain) = struct
@@ -94,6 +95,14 @@ module AnalysisBase (D : Domain) = struct
     List.map (Hashtbl.to_alist workhash) ~f:(fun (lbl, data) ->
       (lbl, { data with instrs = List.rev data.instrs }))
 
+  let get_res_one ~is_back:flag (lbl,data) =
+    if flag then
+      (lbl,(D.get_result data.out_b, D.get_result data.in_b))
+    else
+      (lbl,(D.get_result data.in_b, D.get_result data.out_b))
+
+  let get_result ~is_back:flag t =
+    List.map t ~f:(get_res_one ~is_back:flag)
 end
 
 module ForwardAnalysis (D : Domain) : AnalysisType = struct
@@ -109,6 +118,10 @@ module ForwardAnalysis (D : Domain) : AnalysisType = struct
   let algo cfg =
     List.map cfg ~f:(fun cfg_func ->
       (cfg_func.func.name,algo ~is_back:false cfg_func))
+
+  let get_result (t : t) =
+    List.map t ~f:(fun (name,t) ->
+      (name, get_result ~is_back:false t))
 end
 
 module BackwardAnalysis (D : Domain) : AnalysisType = struct
@@ -124,6 +137,10 @@ module BackwardAnalysis (D : Domain) : AnalysisType = struct
   let algo cfg =
     List.map cfg ~f:(fun cfg_func ->
       (cfg_func.func.name,algo ~is_back:true cfg_func))
+
+  let get_result (t : t) =
+    List.map t ~f:(fun (name,t) ->
+      (name, get_result ~is_back:true t))
 end
 
   (*type data = {
