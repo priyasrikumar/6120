@@ -15,6 +15,7 @@ type dom_t =
     dom : (arg, arg Hash_set.t) Hashtbl.t ;
     dt : (lbl, lbl Hash_set.t) Hashtbl.t ;
     df : (lbl, lbl Hash_set.t) Hashtbl.t ;
+    natloops : (lbl * lbl list) list ;
   }
 type doms = (lbl * dom_t) list
 
@@ -231,6 +232,33 @@ let dt dom =
       Hash_set.filter d ~f:(fun e -> 
           Hash_set.mem (Hashtbl.find_exn inv_dom_strict_dom k) e |> not))
 
+let natloops cfg dom =
+  let cfg_succ = cfg.cfg_succ in
+  let cfg_pred = cfg.cfg_pred in 
+  let seen = Hash_set.create (module String) in 
+  (* h -> t hashtbl *)
+  let backedges = Hashtbl.create (module String) in 
+  let rec dfs node seen =
+    let seen' = Hash_set.copy seen in 
+    Hash_set.add seen' node;
+    let succs = Hashtbl.find_exn cfg_succ node in
+    List.iter ~f:(fun succ ->
+        if Hash_set.mem seen succ then
+          Hashtbl.update backedges succ ~f:(fun _ -> node)
+        else dfs succ seen') succs
+  in
+  dfs cfg.func.name seen;
+  (* Format.printf "before: %a\n" pp_backedge_list (Hashtbl.to_alist backedges);  *)
+  Hashtbl.filteri_inplace backedges ~f:(fun ~key:k ~data:d ->
+    Hash_set.mem (Hashtbl.find_exn dom d) k);
+  (* Format.printf "after: %a\n" pp_backedge_list (Hashtbl.to_alist backedges);  *)
+  Hashtbl.fold ~init:[] backedges ~f:(fun ~key:h ~data:t acc -> 
+    let h_preds = _traverse_cfg_pre h cfg_pred |> Hash_set.of_list (module String) in 
+    let t_preds = _traverse_cfg_pre t cfg_pred |> Hash_set.of_list (module String) in 
+    Hash_set.remove h_preds h; Hash_set.remove t_preds h;
+    let nat = Hash_set.diff t_preds h_preds in 
+    (h, Hash_set.to_list nat) :: acc)
+
 let doms cfg =
   List.map cfg ~f:(fun cfg_func ->
       let func_name = cfg_func.func.name in 
@@ -261,11 +289,12 @@ let doms cfg =
               ~if_not_found:(fun _ -> dom_change := true);
             Hashtbl.update dom vertex ~f:(fun _ -> curr_dom))
       done;
-      let dom_info = 
+      let dom_info : dom_t = 
         {
           dom = dom ;
           dt = dt dom ;
           df = df dom cfg_func ;
+          natloops = natloops cfg_func dom ;
         }
       in
       (func_name,dom_info))
@@ -354,27 +383,3 @@ let scc cfg =
       if Hashtbl.mem lbl_idx lbl |> not then 
         strong_connect lbl); 
   !sccs
-
-let natloops cfg dom =
-  let cfg_succ = cfg.cfg_succ in
-  let cfg_pred = cfg.cfg_pred in 
-  let seen = Hash_set.create (module String) in 
-  (* h -> t hashtbl *)
-  let backedges = Hashtbl.create (module String) in 
-  let rec dfs node =
-    Hash_set.add seen node;
-    let succs = Hashtbl.find_exn cfg_succ node in
-    List.iter ~f:(fun succ ->
-        if Hash_set.mem seen succ then
-          Hashtbl.update backedges succ ~f:(fun _ -> node)
-        else dfs succ) succs
-  in
-  dfs cfg.func.name;
-  Hashtbl.filteri_inplace backedges ~f:(fun ~key:k ~data:d ->
-    Hash_set.mem (Hashtbl.find_exn dom.dom k) d);
-  Hashtbl.fold ~init:[] backedges ~f:(fun ~key:h ~data:t acc -> 
-    let h_preds = _traverse_cfg_pre h cfg_pred |> Hash_set.of_list (module String) in 
-    let t_preds = _traverse_cfg_pre t cfg_pred |> Hash_set.of_list (module String) in 
-    Hash_set.remove h_preds h; Hash_set.remove t_preds h;
-    let nat = Hash_set.diff t_preds h_preds in 
-    (h :: Hash_set.to_list nat) :: acc)

@@ -91,6 +91,7 @@ type lbl_list = lbl list
 [@@deriving show, eq]
 type arg_list = arg list
 [@@deriving show, eq]
-
+type backedge_list = (lbl * lbl) list
+[@@deriving show]
  type dom_list = (lbl * lbl list) list
  [@@deriving show]
