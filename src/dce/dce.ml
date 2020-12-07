@@ -42,7 +42,14 @@ let used_vars_in_instrs used_vars instrs =
           Hash_set.add used_vars arg1;
           Hash_set.add used_vars arg2
       | Ptrcpy (_, _, arg) ->
-          Hash_set.add used_vars arg)
+          Hash_set.add used_vars arg
+      (* | Anon (_, _, Some args, _) ->
+          List.iter args 
+            ~f:(fun arg -> Hash_set.add used_vars arg) *)
+      | Anon (_ , _, _, _) -> ()
+      | Fncall (_, _, _, Some args) -> List.iter args 
+      ~f:(fun arg -> Hash_set.add used_vars arg)
+      | Fncall (_, _, _, None) -> ())
 
 let instrs_to_eliminate cfg_func = 
   (*let block_map = Hashtbl.of_alist_exn (module String) cfg.blocks in
@@ -61,7 +68,8 @@ let get_var instr =
   | Cst (d,_, _) | Binop (d, _, _,_ , _)
   | Unop (d, _, _, _) | Call (Some d,_, _, _)
   | Alloc (d, _, _) | Load (d, _, _)
-  | Ptradd (d, _, _, _) | Ptrcpy (d, _, _) -> Some (d)
+  | Ptradd (d, _, _, _) | Ptrcpy (d, _, _) 
+  | Anon (d, _, _, _) | Fncall (d, _, _, _) -> Some (d)
   | Label _| Jmp (_) | Br (_, _ , _ ) | Ret (_) | Print (_)
   | Call (None, _, _, _)| Nop -> None | Phi (_, _, _)
   | Free (_) | Store (_, _) -> None
@@ -114,6 +122,9 @@ let local_elim_instrs instrs =
       | Load (dst, _, arg) -> [arg], Some (dst)
       | Ptradd (dst, _, arg1, arg2) -> [arg1; arg2], Some (dst)
       | Ptrcpy (dst, _, arg) -> [arg], Some (dst)
+      | Anon (dst, _, _, _) -> [], Some dst
+      | Fncall (dst, _, name, Some args) -> name :: args, Some dst
+      | Fncall (dst, _, name, None) -> [name], Some dst
     in
     (* remove uses *)
     List.iter uses ~f:(Hashtbl.remove last_def);

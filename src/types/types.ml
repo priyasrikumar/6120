@@ -1,14 +1,12 @@
 open Sexplib0.Sexp_conv
 
-(* for now lets not support pointer types *)
-(* also lets not support floating-point types *)
 type typ = 
-    Int
-  | Bool (*| Pointer of typ | Float of float*)
+  | Int
+  | Bool
 [@@deriving show, eq, sexp]
 
 type cst = 
-    IntC of int
+  | IntC of int
   | BoolC of bool
 [@@deriving show, eq, sexp]
 
@@ -19,8 +17,11 @@ type ptr_typ =
 
 type union_typ =
   | Val of typ
-  | Ptr of ptr_typ
+  | Ptx of ptr_typ
+  | Fun of fun_typ
 [@@deriving show, eq, sexp]
+
+and fun_typ = union_typ list * union_typ option
 
 type lbl = string [@@deriving show, eq, sexp]
 type arg = string [@@deriving show, eq, sexp]
@@ -65,9 +66,11 @@ type instr =
   | Alloc of dst * ptr_typ * arg
   | Free of arg
   | Store of arg * arg
-  | Load of dst * ptr_typ  * arg
+  | Load of dst * ptr_typ * arg
   | Ptradd of dst * ptr_typ * arg * arg
   | Ptrcpy of dst * ptr_typ * arg
+  | Anon of dst * union_typ * arg list option * instr list 
+  | Fncall of dst * union_typ * string * arg list option
 [@@deriving show, eq, sexp]
 
 type func = {

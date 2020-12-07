@@ -10,7 +10,7 @@ orders,dce,5353
 collatz,baseline,169
 collatz,dce,169
 sieve,baseline,3482
-sieve,dce,incorrect
+sieve,dce,3457
 recfact,baseline,104
 recfact,dce,104
 sqrt,baseline,322

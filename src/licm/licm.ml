@@ -7,8 +7,8 @@ open Df.Domain
 module Reach = ForwardAnalysis(ReachingDomain) 
 
 let licm cfg doms = 
-  let reaching = Reach.algo cfg |> Reach.get_result |> Hashtbl.of_alist_exn (module String) in 
-  let entry_block = [] in 
+  let _reaching = Reach.algo cfg |> Reach.get_result |> Hashtbl.of_alist_exn (module String) in 
+  let _entry_block = [] in 
   let candidate_doms = List.filter doms ~f:(fun (_lbl, dom) -> List.length dom.natloops <> 0) in 
   let cfg_map = List.map cfg ~f:(fun c -> (c.func.name,c)) |> Hashtbl.of_alist_exn (module String) in 
   let nat_loops = List.map candidate_doms

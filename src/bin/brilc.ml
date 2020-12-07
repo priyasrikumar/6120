@@ -306,6 +306,22 @@ let natloop_cmd : Command.t =
     NatLoop.spec
     NatLoop.run *)
 
+module Parse = struct 
+  let spec = Command.Spec.(empty)
+
+  let _parse prog = Json_processor.to_json prog
+  |> Yojson.Basic.to_channel stdout
+
+  let run () =
+    let prog = Json_processor.parse_in in 
+    _parse prog
+end
+ 
+let parse_cmd : Command.t =
+  Command.basic_spec ~summary:"parse a program"
+    Parse.spec
+    Parse.run 
+
 let main : Command.t = 
   Command.group ~summary:"pick an optimization"
     [("cfg", cfg_cmd);
@@ -322,6 +338,7 @@ let main : Command.t =
      ("to-ssa", to_ssa_cmd);
      ("from-ssa", from_ssa_cmd);
      ("from-ssa-opt", from_ssa_opt_cmd);
+     ("parse", parse_cmd)
     ]
 
 let () = Command.run main

@@ -60,7 +60,9 @@ module ReachingDomain : Domain = struct
     | Alloc (dst, _, _)
     | Load (dst, _, _) 
     | Ptradd (dst, _, _, _)
-    | Ptrcpy (dst, _, _) ->    
+    | Ptrcpy (dst, _, _)
+    | Anon (dst, _, _, _)
+    | Fncall (dst, _, _, _) ->    
       Hashtbl.update t' dst ~f:(function
           | None -> [instr]
           | Some _ -> [instr]); t'
@@ -73,7 +75,8 @@ module ReachingDomain : Domain = struct
     | Nop 
     | Phi (_, _, _)
     | Free _ 
-    | Store (_, _) -> t'
+    | Store (_, _)
+      -> t'
 
   let get_result t = Reaching (Hashtbl.to_alist t)
 end 
@@ -123,8 +126,8 @@ module LiveVarsDomain : Domain = struct
         List.iter args ~f:(Hash_set.add t')
       | Nop -> ()
       | Phi (dst, _, phis) ->
-          List.iter phis ~f:(fun (_,arg) -> Hash_set.add t' arg);
-          Hash_set.remove t' dst
+        List.iter phis ~f:(fun (_,arg) -> Hash_set.add t' arg);
+        Hash_set.remove t' dst
       | Alloc (dst, _, arg) ->
         Hash_set.add t' arg;
         Hash_set.remove t' dst
@@ -142,6 +145,17 @@ module LiveVarsDomain : Domain = struct
         Hash_set.remove t' dst
       | Ptrcpy (dst, _, arg) ->
         Hash_set.add t' arg;
+        Hash_set.remove t' dst
+      | Anon (dst, _, Some args, _) -> 
+        List.iter args ~f:(Hash_set.add t');
+        Hash_set.remove t' dst
+      | Anon (dst, _, None, _) -> 
+        Hash_set.remove t' dst
+      | Fncall (dst, _, name, Some (args)) -> 
+        List.iter (name :: args) ~f:(Hash_set.add t');
+        Hash_set.remove t' dst 
+      | Fncall (dst, _, name, None) -> 
+        Hash_set.add t' name; 
         Hash_set.remove t' dst
     end; t'
 
@@ -314,9 +328,20 @@ module ConstantPropDomain : Domain = struct
       | Ptrcpy (dst, _, arg) ->
         process_args t' [arg];
         Hashtbl.update t' dst ~f:(fun _ -> Bot)
+      | Anon (dst, _, Some args, _) -> 
+        process_args t' args;
+        Hashtbl.update t' dst ~f:(fun _ -> Bot)
+      | Anon (dst, _, None, _) -> 
+        Hashtbl.update t' dst ~f:(fun _ -> Bot)
+      | Fncall (dst, _, name, Some args) ->
+        process_args t' (name :: args);
+        Hashtbl.update t' dst ~f:(fun _ -> Top)
+      | Fncall (dst, _, name, None) ->
+        process_args t' [name];
+        Hashtbl.update t' dst ~f:(fun _ -> Top)
     end; t'
 
   let get_result t = ConstProp(
-    Hashtbl.to_alist t
-    |> List.map ~f:(fun (a,b) -> (a,show_prop_lattice b)))
+      Hashtbl.to_alist t
+      |> List.map ~f:(fun (a,b) -> (a,show_prop_lattice b)))
 end

@@ -42,6 +42,19 @@ let rec to_ptr_typ json : ptr_typ =
     let t = to_ptr_typ more in
     Ptr (t)
 
+let rec to_union_typ json : union_typ = 
+  match json with 
+  | `String "int" -> Val (Int)
+  | `String "bool" -> Val (Bool)
+  | `Assoc [("ptr", _)] as rest -> 
+    let t = to_ptr_typ rest in 
+    Ptx (t) 
+  | `Assoc [("fun",`Assoc [("params", `List ps); ("ret", r)])] -> 
+    let params = List.map to_union_typ ps in 
+    let ret = if r = `String "" then None else Some (to_union_typ r) in
+    Fun (params, ret)
+  | _ -> raise_invalid_arg "not ok" json
+
 let to_typ_opt = function
   | `Null -> None
   | json -> Some (to_typ json)
@@ -50,7 +63,7 @@ let to_ptr_typ_opt = function
   | `Null -> None
   | json -> Some (to_ptr_typ json)
 
-let parse_instr json =
+let rec parse_instr json =
   let open Util in
   match json |> member "label" with
   | `String lbl -> Label (lbl) 
@@ -58,6 +71,7 @@ let parse_instr json =
       let dst () = json |> member "dest" |> to_string in
       let typ () = json |> member "type" |> to_typ in
       let ptr_typ () : ptr_typ = json |> member "type" |> to_ptr_typ in
+      let union_typ () : union_typ = json |> member "type" |> to_union_typ in 
       match json |> member "op" with
       | `String "const" ->
         let typ = typ () in 
@@ -80,9 +94,9 @@ let parse_instr json =
           | _ -> raise_invalid_arg "Invalid unop" json
         in
         begin try
-          ignore (json |> member "type" |> to_assoc);
-          Ptrcpy (dst (), ptr_typ (), arg)
-        with Type_error (_, _) -> Unop (dst (), typ (), op, arg) end
+            ignore (json |> member "type" |> to_assoc);
+            Ptrcpy (dst (), ptr_typ (), arg)
+          with Type_error (_, _) -> Unop (dst (), typ (), op, arg) end
       | `String "jmp" ->
         let lbl = json |> member "labels" |> to_list |> function
           | lbl :: [] -> lbl |> to_string
@@ -105,11 +119,11 @@ let parse_instr json =
           | _ -> Some (dst ())
         in
         let typ = if dst = None then None else
-          try
-            ignore (json |> member "type" |> to_assoc);
-            Some (Ptr (ptr_typ ()))
-          with Type_error (_, _) -> Some (Val (typ ()))
-       in
+            try
+              ignore (json |> member "type" |> to_assoc);
+              Some (Ptx (ptr_typ ()))
+            with Type_error (_, _) -> Some (Val (typ ()))
+        in
         let name = json |> member "funcs" |> to_list |> function
           | name :: [] -> name |> to_string
           | _ -> raise_invalid_arg "Invalid function call" json
@@ -135,7 +149,7 @@ let parse_instr json =
         let typ =
           try
             ignore (json |> member "type" |> to_assoc);
-            Ptr (ptr_typ ())
+            Ptx (ptr_typ ())
           with Type_error (_, _) -> Val (typ ())
         in 
         Phi (dst (), typ, phis)
@@ -170,6 +184,15 @@ let parse_instr json =
         let arg1 = args |> List.hd in
         let arg2 = args |> List.tl |> List.hd in
         Ptradd (dst (), typ, arg1, arg2)
+      | `String "anon" -> 
+        let args = json |> member "args" |> to_list |> List.map to_string in
+        let instrs = json |> member "instrs" |> to_list |> List.map parse_instr in 
+        Anon (dst (), union_typ (), (if args = [] then None else Some args), instrs)
+      | `String "fncall" -> 
+        let args = json |> member "args" |> to_list |> List.map to_string in 
+        let func = json |> member "func" |> to_string in 
+        Fncall (dst (), union_typ (), func, if args = [] then None else Some args)
+
       | _ ->
         raise_invalid_arg "Invalid op" json
     end
@@ -185,7 +208,7 @@ let parse_func json =
         let typ =
           try
             ignore (json |> member "type" |> to_assoc);
-            Ptr (json |> member "type" |> to_ptr_typ)
+            Ptx (json |> member "type" |> to_ptr_typ)
           with Type_error (_, _) -> Val (json |> member "type" |> to_typ)
         in
         arg, typ))
@@ -196,12 +219,12 @@ let parse_func json =
       ignore (json |> member "type" |> to_assoc);
       match json |> member "type" |> to_ptr_typ_opt with
       | None -> None
-      | Some (typ) -> Some (Ptr (typ))
+      | Some (typ) -> Some (Ptx (typ))
     with Type_error (_, _) -> begin
-      match json |> member "type" |> to_typ_opt with
-      | None -> None
-      | Some (typ) -> Some (Val (typ))
-    end
+        match json |> member "type" |> to_typ_opt with
+        | None -> None
+        | Some (typ) -> Some (Val (typ))
+      end
   in
   let instrs = json |> member "instrs" |> to_list |> List.map parse_instr in
   {
@@ -243,16 +266,24 @@ let ptr_typ_to_json ptr_typ =
   in
   to_json ptr_typ
 
-let rev_union_typ = function 
+let rec fun_typ_to_json (ps, r) = 
+  let ps' = List.map rev_union_typ ps in 
+  let r' = if (Option.is_none r) |> not 
+    then rev_union_typ (Option.get r) 
+    else `String "" in 
+  `Assoc [("fun", `Assoc[("params", `List ps'); ("ret", r')])]
+
+and rev_union_typ = function 
   | Val v -> rev_typ v 
-  | Ptr p -> ptr_typ_to_json p 
+  | Ptx p -> ptr_typ_to_json p 
+  | Fun f -> fun_typ_to_json f
 
 let load_typ_to_json ptr_typ =
   match ptr_typ with
   | Base (t) -> rev_typ t
   | _ -> ptr_typ_to_json ptr_typ
 
-let instr_to_json instr =
+let rec instr_to_json instr =
   let to_args args = `List (List.map (fun x -> `String x) args) in
   let to_labels labels = to_args labels in 
   let assoc = match instr with
@@ -332,23 +363,32 @@ let instr_to_json instr =
       ]
     | Nop -> [("op", `String "nop")]
     | Phi (d, Val t, phis) ->
-        let labels, args = List.split phis in
-        [
-          ("args", to_args args) ;
-          ("dest", `String (d)) ;
-          ("labels", to_labels labels) ;
-          ("op", `String ("phi")) ;
-          ("type", rev_typ t) ;
-        ]
-    | Phi (d, Ptr t, phis) ->
-        let labels, args = List.split phis in
-        [
-          ("args", to_args args) ;
-          ("dest", `String (d)) ;
-          ("labels", to_labels labels) ;
-          ("op", `String ("phi")) ;
-          ("type", ptr_typ_to_json t) ;
-        ]
+      let labels, args = List.split phis in
+      [
+        ("args", to_args args) ;
+        ("dest", `String (d)) ;
+        ("labels", to_labels labels) ;
+        ("op", `String ("phi")) ;
+        ("type", rev_typ t) ;
+      ]
+    | Phi (d, Ptx t, phis) ->
+      let labels, args = List.split phis in
+      [
+        ("args", to_args args) ;
+        ("dest", `String (d)) ;
+        ("labels", to_labels labels) ;
+        ("op", `String ("phi")) ;
+        ("type", ptr_typ_to_json t) ;
+      ]
+    | Phi (d, Fun t, phis) -> 
+      let labels, args = List.split phis in 
+      [
+        ("args", to_args args) ;
+        ("dest", `String (d)) ;
+        ("labels", to_labels labels) ;
+        ("op", `String ("phi")) ;
+        ("type", fun_typ_to_json t) ;
+      ]
     | Alloc (d, pt, arg) ->
       [
         ("args", `List [`String arg]) ;
@@ -387,7 +427,37 @@ let instr_to_json instr =
         ("op", `String ("id")) ;
         ("type", ptr_typ_to_json pt)
       ]
-    (*| instr -> failwith ("unimplemented : "^show_instr (instr))*)
+    | Anon (d, typ, Some args, instrs) -> 
+      [
+        ("args", to_args args) ;
+        ("dest", `String (d)) ;
+        ("op", `String ("anon")) ; 
+        ("type", rev_union_typ typ) ;
+        ("instrs", `List (List.map instr_to_json instrs))
+      ]
+    | Anon (d, typ, None, instrs) -> 
+      [
+        ("dest", `String (d)) ;
+        ("op", `String ("anon")) ; 
+        ("type", rev_union_typ typ) ;
+        ("instrs", `List (List.map instr_to_json instrs))
+      ]
+    | Fncall (d, typ, name, Some args) -> 
+      [
+        ("args", to_args args) ;
+        ("dest", `String (d)) ;
+        ("func", `String name) ;
+        ("op", `String "fncall") ;
+        ("type", typ |> rev_union_typ) 
+      ]
+    | Fncall (d, typ, name, None) -> 
+      [ 
+        ("dest", `String (d)) ;
+        ("func", `String name) ;
+        ("op", `String "fncall") ;
+        ("type", typ |> rev_union_typ) 
+      ]
+      (*| instr -> failwith ("unimplemented : "^show_instr (instr))*)
   in
   `Assoc assoc
 
@@ -396,7 +466,8 @@ let func_to_json func =
   let convert_args args = `List (List.map (fun (d,t) -> 
       match t with
       | Val (t) -> `Assoc ([("name", `String d); ("type", rev_typ t)])
-      | Ptr (t) -> `Assoc ([("name", `String d); ("type", ptr_typ_to_json t)])) args)
+      | Ptx (t) -> `Assoc ([("name", `String d); ("type", ptr_typ_to_json t)])
+      | Fun f -> `Assoc ([("name", `String d); ("type", fun_typ_to_json f)])) args)
   in
   let assoc = match func.name, func.args, func.rtyp, func.instrs with
     | name, None, None, instrs ->
@@ -416,7 +487,7 @@ let func_to_json func =
         ("name", `String name) ;
         ("type", rev_typ typ) ;
       ]
-    | name, None, Some (Ptr (typ)), instrs ->
+    | name, None, Some (Ptx (typ)), instrs ->
       [
         ("instrs", convert_instrs instrs) ;
         ("name", `String name) ;
@@ -429,12 +500,25 @@ let func_to_json func =
         ("name", `String name) ;
         ("type", rev_typ typ) ;
       ]
-    | name, Some (args), Some (Ptr (typ)), instrs ->
+    | name, Some (args), Some (Ptx (typ)), instrs ->
       [
         ("args", convert_args args) ;
         ("instrs", convert_instrs instrs) ;
         ("name", `String name) ;
         ("type", ptr_typ_to_json typ) ;
+      ]
+    | name, Some (args), Some (Fun typ), instrs -> 
+      [
+        ("args", convert_args args) ;
+        ("instrs", convert_instrs instrs) ;
+        ("name", `String name) ;
+        ("type", fun_typ_to_json typ) ;
+      ]
+    | name, None, Some (Fun typ), instrs -> 
+      [
+        ("instrs", convert_instrs instrs) ;
+        ("name", `String name) ;
+        ("type", fun_typ_to_json typ) ;
       ]
   in
   `Assoc assoc

@@ -10,7 +10,7 @@ orders,lvndce,5353
 collatz,baseline,169
 collatz,lvndce,169
 sieve,baseline,3482
-sieve,lvndce,incorrect
+sieve,lvndce,3455
 recfact,baseline,104
 recfact,lvndce,104
 sqrt,baseline,322
@@ -21,8 +21,8 @@ check-primes,baseline,8468
 check-primes,lvndce,8322
 fib,baseline,121
 fib,lvndce,120
-ackermann,baseline,timeout
-ackermann,lvndce,timeout
+ackermann,baseline,1464231
+ackermann,lvndce,1464232
 gcd,baseline,46
 gcd,lvndce,46
 binary-fmt,baseline,100

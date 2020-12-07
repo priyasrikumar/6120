@@ -6,6 +6,7 @@ brilc: _build/default/src/bin/brilc.exe
 
 clean: 
 		rm -rf _build
+		rm ./brilc
 
 build:
 	dune build src/bin/brilc.exe

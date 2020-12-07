@@ -27,34 +27,34 @@ let lvn_block block =
   let get_correct_call_arg arg =
     match Hashtbl.find arg_tbl arg with
     | None ->
-        let new_num = new_val () in
-        let new_exp = Un (Id, new_num) in
-        update_tbls (new_num, new_exp, arg);
-        arg
+      let new_num = new_val () in
+      let new_exp = Un (Id, new_num) in
+      update_tbls (new_num, new_exp, arg);
+      arg
     | Some (_,Un (Id,num),_) -> 
-        let (_, _, arg') as entry = Hashtbl.find_exn num_tbl num in
-        let entry' = Hashtbl.find_exn arg_tbl arg' in
-        if is_tbl_val_eq entry entry' then arg' else arg
+      let (_, _, arg') as entry = Hashtbl.find_exn num_tbl num in
+      let entry' = Hashtbl.find_exn arg_tbl arg' in
+      if is_tbl_val_eq entry entry' then arg' else arg
     | Some (_,_,_) -> arg 
   in
   List.map block ~f:(fun instr ->
-    match instr with
-    | Label _ -> instr
-    | Cst (dst, _, IntC i) -> 
+      match instr with
+      | Label _ -> instr
+      | Cst (dst, _, IntC i) -> 
         let new_exp = CstI i in
         let new_num = new_val () in 
         let new_var = dst in
         update_tbls ~is_cst:true (new_num,new_exp,new_var); 
         instr
-    | Cst (dst, _ , BoolC b) -> 
+      | Cst (dst, _ , BoolC b) -> 
         let new_exp = CstB b in
         let new_num = new_val () in 
         let new_var = dst in
         update_tbls ~is_cst:true (new_num,new_exp,new_var);
         instr
-    | Binop (dst, typ, op, arg1, arg2) -> begin
-        match Hashtbl.find arg_tbl arg1, Hashtbl.find arg_tbl arg2 with 
-        | None, None -> 
+      | Binop (dst, typ, op, arg1, arg2) -> begin
+          match Hashtbl.find arg_tbl arg1, Hashtbl.find arg_tbl arg2 with 
+          | None, None -> 
             let l_val = new_val () in
             let l_exp = Un (Id, l_val) in
             let l_var = arg1 in
@@ -68,7 +68,7 @@ let lvn_block block =
             let new_arg = dst in 
             update_tbls (new_val, new_exp, new_arg);
             instr
-        | None, Some (r_entry) -> 
+          | None, Some (r_entry) -> 
             let l_val = new_val () in
             let l_exp = Un (Id, l_val) in
             let l_var = arg1 in
@@ -79,7 +79,7 @@ let lvn_block block =
             let new_arg = dst in 
             update_tbls (new_val, new_exp, new_arg);            
             Binop (dst, typ, op, arg1, r_arg)
-        | Some l_entry, None ->
+          | Some l_entry, None ->
             let r_val = new_val () in
             let r_exp = Un (Id, r_val) in
             let r_var = arg2 in
@@ -90,40 +90,40 @@ let lvn_block block =
             let new_arg = dst in 
             update_tbls (new_val, new_exp, new_arg);
             Binop (dst, typ, op, l_arg, arg2)
-        | Some (l_val,l_expr,_l_arg), Some (r_val,r_expr,_r_arg) -> begin
-            match l_expr, r_expr with 
-            | CstI cst1, CstI cst2 -> begin
-                match binop_to_fun op with
-                | Arith f -> begin
-                  try 
-                    let new_val = new_val () in
-                    let new_exp = CstI (f cst1 cst2) in
-                    update_tbls ~is_cst:true (new_val,new_exp,dst);
-                    Cst (dst, Int, IntC (f cst1 cst2))
-                  with Division_by_zero -> begin
-                    let new_val = new_val () in
-                    let new_exp = Bin (op, l_val, r_val) in
-                    update_tbls (new_val,new_exp,dst);
-                    instr
-                  end
-                end
-                | Cmp f ->
+          | Some (l_val,l_expr,_l_arg), Some (r_val,r_expr,_r_arg) -> begin
+              match l_expr, r_expr with 
+              | CstI cst1, CstI cst2 -> begin
+                  match binop_to_fun op with
+                  | Arith f -> begin
+                      try 
+                        let new_val = new_val () in
+                        let new_exp = CstI (f cst1 cst2) in
+                        update_tbls ~is_cst:true (new_val,new_exp,dst);
+                        Cst (dst, Int, IntC (f cst1 cst2))
+                      with Division_by_zero -> begin
+                          let new_val = new_val () in
+                          let new_exp = Bin (op, l_val, r_val) in
+                          update_tbls (new_val,new_exp,dst);
+                          instr
+                        end
+                    end
+                  | Cmp f ->
                     let new_val = new_val () in
                     let new_exp = CstB (f cst1 cst2) in
                     update_tbls ~is_cst:true (new_val,new_exp,dst);
                     Cst (dst, Bool, BoolC (f cst1 cst2)) 
-                | _ -> Stdlib.invalid_arg "Shouldn't encounter Logic here."
-              end
-            | CstB bool1, CstB bool2 -> begin
-                match binop_to_fun op with 
-                | Logic f ->
+                  | _ -> Stdlib.invalid_arg "Shouldn't encounter Logic here."
+                end
+              | CstB bool1, CstB bool2 -> begin
+                  match binop_to_fun op with 
+                  | Logic f ->
                     let new_val = new_val () in 
                     let new_exp = (f bool1 bool2) in 
                     update_tbls ~is_cst:true (new_val, CstB new_exp, dst); 
                     Cst (dst, Bool, BoolC (new_exp))
-                | _ -> Stdlib.invalid_arg "No Arith allowed!"
-              end 
-            | _ ->
+                  | _ -> Stdlib.invalid_arg "No Arith allowed!"
+                end 
+              | _ ->
                 let canonc_expr =
                   if is_add_mul op then
                     if l_val < r_val then Bin (op, l_val, r_val)
@@ -147,15 +147,15 @@ let lvn_block block =
                     let new_val = new_val () in
                     update_tbls (new_val,canonc_expr,dst);
                     instr
-              | None ->
+                | None ->
                   let new_val = new_val () in
                   update_tbls (new_val,canonc_expr,dst);
                   instr
-          end
-      end
-    | Unop (dst, typ, Id, arg) -> begin
-        match Hashtbl.find arg_tbl arg with 
-        | None ->
+            end
+        end
+      | Unop (dst, typ, Id, arg) -> begin
+          match Hashtbl.find arg_tbl arg with 
+          | None ->
             let right_val = new_val () in 
             let right_exp = Un (Id, right_val) in 
             let right_var = arg in 
@@ -164,8 +164,8 @@ let lvn_block block =
             let new_exp = Un (Id, right_val) in
             update_tbls (new_val, new_exp, dst);
             instr
-        | Some (_, (CstI (_) as exp), _)
-        | Some (_, (CstB (_) as exp), _) ->
+          | Some (_, (CstI (_) as exp), _)
+          | Some (_, (CstB (_) as exp), _) ->
             let new_val = new_val () in
             update_tbls ~is_cst:true (new_val,exp,dst);
             let typ', cst' =
@@ -175,42 +175,42 @@ let lvn_block block =
               | _ -> Stdlib.invalid_arg "Should be unreachable."
             in
             Cst (dst, typ', cst')
-        | Some ((num, (Un (Id, num') as new_exp), arg') as entry) -> begin
-            let default () =
-              let new_val = new_val () in
-              let new_exp = Un (Id, num) in
-              update_tbls ~is_cst:true (new_val, new_exp, arg');
-              Unop (dst, typ, Id, arg)
-            in
-            match Hashtbl.find num_tbl num' with
-            | None -> default ()
-            | Some ((_,_,arg'') as entry') ->
-              if is_tbl_val_eq entry entry' then 
+          | Some ((num, (Un (Id, num') as new_exp), arg') as entry) -> begin
+              let default () =
                 let new_val = new_val () in
-                update_tbls ~is_cst:true (new_val, new_exp, dst);
-                Unop (dst, typ, Id, arg'')
-              else
-                default ()
-          end
-        | Some (num, _, arg') ->
+                let new_exp = Un (Id, num) in
+                update_tbls ~is_cst:true (new_val, new_exp, arg');
+                Unop (dst, typ, Id, arg)
+              in
+              match Hashtbl.find num_tbl num' with
+              | None -> default ()
+              | Some ((_,_,arg'') as entry') ->
+                if is_tbl_val_eq entry entry' then 
+                  let new_val = new_val () in
+                  update_tbls ~is_cst:true (new_val, new_exp, dst);
+                  Unop (dst, typ, Id, arg'')
+                else
+                  default ()
+            end
+          | Some (num, _, arg') ->
             let new_val = new_val () in
             let new_exp = Un (Id, num) in
             update_tbls (new_val, new_exp, dst);
             Unop (dst, typ, Id, arg')
-        (*| Some (entry) ->
-          Format.printf "AA1: %a\n" pp_tbl_val entry;
-          let (new_val, new_exp, new_var) = get_correct_arg arg entry in
-          if String.equal new_var arg |> not then
-            Unop (dst, typ, Id, new_var)
-          else begin
-            Format.printf "AA2: %a\n" pp_tbl_val (new_val, new_exp, new_var);
-            (*update_tbls (new_val, new_exp, dst);*)
-            Hashtbl.add_exn arg_tbl ~key:dst ~data:(new_val, new_exp, new_var);
-            Unop (dst, typ, Id, new_var) end*)
-      end
-    | Unop (dst, _, Not, arg) -> begin
-        match Hashtbl.find arg_tbl arg with
-        | None ->
+            (*| Some (entry) ->
+              Format.printf "AA1: %a\n" pp_tbl_val entry;
+              let (new_val, new_exp, new_var) = get_correct_arg arg entry in
+              if String.equal new_var arg |> not then
+                Unop (dst, typ, Id, new_var)
+              else begin
+                Format.printf "AA2: %a\n" pp_tbl_val (new_val, new_exp, new_var);
+                (*update_tbls (new_val, new_exp, dst);*)
+                Hashtbl.add_exn arg_tbl ~key:dst ~data:(new_val, new_exp, new_var);
+                Unop (dst, typ, Id, new_var) end*)
+        end
+      | Unop (dst, _, Not, arg) -> begin
+          match Hashtbl.find arg_tbl arg with
+          | None ->
             let r_val = new_val () in
             let r_exp = Un (Id, r_val) in
             let r_var = arg in
@@ -219,58 +219,75 @@ let lvn_block block =
             let new_exp = Un (Id, r_val) in
             update_tbls (new_val, new_exp, dst);
             instr
-        | Some (_val,CstB (b),_arg) ->
+          | Some (_val,CstB (b),_arg) ->
             let new_val = new_val () in
             let new_exp = CstB (not b) in
             update_tbls ~is_cst:true (new_val,new_exp,dst);
             Cst (dst, Bool, BoolC (not b))
-        | Some (num,_expr,_arg) ->
+          | Some (num,_expr,_arg) ->
             let new_val = new_val () in 
             let new_exp = Un (Not, num) in
             update_tbls (new_val,new_exp,dst);
             instr
-      end
-    | Jmp _ -> instr
-    | Br (arg, lbl1, lbl2) ->
+        end
+      | Jmp _ -> instr
+      | Br (arg, lbl1, lbl2) ->
         Br (get_correct_call_arg arg, lbl1, lbl2)
-    | Call (Some (dst), typ, name, Some (args)) ->
+      | Call (Some (dst), typ, name, Some (args)) ->
         let instr' = Call (Some (dst), typ, name, Some (List.map args ~f:get_correct_call_arg)) in
         let new_val = new_val () in
         let new_exp = Un (Id, new_val) in
         update_tbls (new_val, new_exp, dst);
         instr'
-    | Call (None, typ, name, Some (args)) ->
+      | Call (None, typ, name, Some (args)) ->
         Call (None, typ, name, Some (List.map args ~f:get_correct_call_arg))
-    | Call (Some (dst), Some (Val (_t)), _, None) ->
+      | Call (Some (dst), Some (Val (_t)), _, None) ->
         let new_val = new_val () in
         let new_exp = Un (Id, new_val) in
         update_tbls (new_val, new_exp, dst);
         instr
-    | Call (Some _, Some (Ptr _), _, None) -> instr
-    | Call (Some _, None, _, None) -> instr
-    | Call (None, _, _, None) ->
+      | Call (Some _, Some (Ptx _), _, None) -> instr
+      | Call (Some _, Some (Fun _), _, None) -> instr
+      | Call (Some _, None, _, None) -> instr
+      | Call (None, _, _, None) ->
         instr
-    | Ret (Some arg) ->
+      | Ret (Some arg) ->
         Ret (Some (get_correct_call_arg arg))
-    | Ret (None) ->
+      | Ret (None) ->
         instr
-    | Print (args) ->
+      | Print (args) ->
         Print (List.map args ~f:get_correct_call_arg)
-    | Nop ->
+      | Nop ->
         instr
-    | Phi (dst, typ, phis) ->
+      | Phi (dst, typ, phis) ->
         let phis' = List.map phis ~f:(fun (lbl,arg) -> (lbl,get_correct_call_arg arg)) in
         Phi (dst, typ, phis')
-    | Alloc (_, _, _) -> instr
-    | Free _ -> instr
-    | Store (_, _) -> instr
-    | Load (_, _, _) -> instr
-    | Ptradd (_, _, _, _) -> instr
-    | Ptrcpy (_, _, _) -> instr)
+      | Alloc (_, _, _) -> instr
+      | Free _ -> instr
+      | Store (_, _) -> instr
+      | Load (_, _, _) -> instr
+      | Ptradd (_, _, _, _) -> instr
+      | Ptrcpy (_, _, _) -> instr
+      | Anon (dst, _, _, _) -> 
+        let new_val = new_val () in
+        let new_exp = Un (Id, new_val) in
+        update_tbls (new_val, new_exp, dst);
+        instr
+      | Fncall (dst, typ, name, Some args) -> 
+        let instr' = Fncall ((dst), typ, name, Some (List.map args ~f:get_correct_call_arg)) in
+        let new_val = new_val () in
+        let new_exp = Un (Id, new_val) in
+        update_tbls (new_val, new_exp, dst);
+        instr'
+      | Fncall (dst, _, _, None) ->
+        let new_val = new_val () in
+        let new_exp = Un (Id, new_val) in
+        update_tbls (new_val, new_exp, dst);
+        instr)
 
 let lvn cfg =
   List.map cfg ~f:(fun cfg_func ->
-    let blocks' = List.map cfg_func.blocks ~f:(fun (name,block) ->
-      (name,lvn_block block))
-    in
-    { cfg_func with blocks = blocks' })
+      let blocks' = List.map cfg_func.blocks ~f:(fun (name,block) ->
+          (name,lvn_block block))
+      in
+      { cfg_func with blocks = blocks' })

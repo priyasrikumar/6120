@@ -1,0 +1,3 @@
+(library
+(name hof)
+(libraries core types))
