@@ -67,9 +67,12 @@ let make_blocks prog =
   in
   List.map prog ~f:(fun func ->
       let instrs' =
+        (*
         match List.hd func.instrs with
         | Some (Label _) | None -> func.instrs
         | Some (_) -> Label func.name :: func.instrs
+        *)
+        Label func.name :: func.instrs
       in 
       let func' = {func with instrs = instrs'} in
       get_blocks func';
