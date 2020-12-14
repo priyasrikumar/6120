@@ -434,7 +434,7 @@
           ],
           "dest": "sum",
           "func": "sumOfSquares",
-          "op": "fncall",
+          "op": "apply",
           "type": "int"
         },
         {
@@ -459,7 +459,7 @@
           ],
           "dest": "square",
           "func": "squareOfSum",
-          "op": "fncall",
+          "op": "apply",
           "type": "int"
         },
         {

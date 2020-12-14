@@ -9,3 +9,4 @@ __pycache__
 .merlin
 **.DS_Store
 brilc
+.vscode/settings.json

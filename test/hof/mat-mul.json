@@ -206,7 +206,7 @@
           ],
           "dest": "val",
           "func": "rand",
-          "op": "fncall",
+          "op": "apply",
           "type": "int"
         },
         {

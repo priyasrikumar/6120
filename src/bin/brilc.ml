@@ -322,6 +322,18 @@ let parse_cmd : Command.t =
     Parse.spec
     Parse.run 
 
+module Lift = struct 
+  let spec = Command.Spec.(empty)
+  let run () =
+    let prog = Json_processor.parse_in |> extract_cfg |> Hof.Lifting.process_q in 
+    print_res prog; 
+end
+ 
+let lift_cmd : Command.t =
+  Command.basic_spec ~summary:"parse a program"
+    Lift.spec
+    Lift.run 
+
 let main : Command.t = 
   Command.group ~summary:"pick an optimization"
     [("cfg", cfg_cmd);
@@ -338,7 +350,8 @@ let main : Command.t =
      ("to-ssa", to_ssa_cmd);
      ("from-ssa", from_ssa_cmd);
      ("from-ssa-opt", from_ssa_opt_cmd);
-     ("parse", parse_cmd)
+     ("parse", parse_cmd);
+     ("lift", lift_cmd)
     ]
 
 let () = Command.run main

@@ -21,7 +21,7 @@ type union_typ =
   | Fun of fun_typ
 [@@deriving show, eq, sexp]
 
-and fun_typ = union_typ list * union_typ option
+and fun_typ = (union_typ list option) * union_typ option
 
 type lbl = string [@@deriving show, eq, sexp]
 type arg = string [@@deriving show, eq, sexp]

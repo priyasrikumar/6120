@@ -1,3 +1,3 @@
 (library
 (name hof)
-(libraries core types))
+(libraries core types cfg))

@@ -50,7 +50,7 @@ let rec to_union_typ json : union_typ =
     let t = to_ptr_typ rest in 
     Ptx (t) 
   | `Assoc [("fun",`Assoc [("params", `List ps); ("ret", r)])] -> 
-    let params = List.map to_union_typ ps in 
+    let params = if ps = [] then None else Some (List.map to_union_typ ps) in 
     let ret = if r = `String "" then None else Some (to_union_typ r) in
     Fun (params, ret)
   | _ -> raise_invalid_arg "not ok" json
@@ -188,7 +188,7 @@ let rec parse_instr json =
         let args = json |> member "args" |> to_list |> List.map to_string in
         let instrs = json |> member "instrs" |> to_list |> List.map parse_instr in 
         Anon (dst (), union_typ (), (if args = [] then None else Some args), instrs)
-      | `String "fncall" -> 
+      | `String "apply" -> 
         let args = json |> member "args" |> to_list |> List.map to_string in 
         let func = json |> member "func" |> to_string in 
         Fncall (dst (), union_typ (), func, if args = [] then None else Some args)
@@ -267,7 +267,9 @@ let ptr_typ_to_json ptr_typ =
   to_json ptr_typ
 
 let rec fun_typ_to_json (ps, r) = 
-  let ps' = List.map rev_union_typ ps in 
+  let ps' = if (Option.is_none ps) |> not 
+    then List.map rev_union_typ (Option.value ps ~default:[]) 
+    else [] in 
   let r' = if (Option.is_none r) |> not 
     then rev_union_typ (Option.get r) 
     else `String "" in 
@@ -447,14 +449,14 @@ let rec instr_to_json instr =
         ("args", to_args args) ;
         ("dest", `String (d)) ;
         ("func", `String name) ;
-        ("op", `String "fncall") ;
+        ("op", `String "apply") ;
         ("type", typ |> rev_union_typ) 
       ]
     | Fncall (d, typ, name, None) -> 
       [ 
         ("dest", `String (d)) ;
         ("func", `String name) ;
-        ("op", `String "fncall") ;
+        ("op", `String "apply") ;
         ("type", typ |> rev_union_typ) 
       ]
       (*| instr -> failwith ("unimplemented : "^show_instr (instr))*)
