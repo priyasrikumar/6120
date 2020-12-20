@@ -1,41 +1,4 @@
-# Generates a random array of length `size`
-@randarray(size: int, rng: ptr<int>) : ptr<int> {
-  arr: ptr<int> = alloc size;
-  # Use a linear congruential generator to generate random numbers.
-  # `seq` is the state of the random number generator.
-  # Returns a value between 0 and max
-  rand: fun <ptr<int>, int>>, <int> = anon(seq, max) {
-    a: int = const 25214903917;
-    c: int = const 11;
-    m: int = const 281474976710656;
-    x: int = load seq;
-    ax: int = mul a x;
-    axpc: int = add ax c;
-    next: int = div axpc m;
-    next: int = mul next m;
-    next: int = sub axpc next;
-    store seq next;
-    val: int = div next max;
-    val: int = mul val max;
-    val: int = sub next val;
-    ret val;
-  };
-  i: int = const 0;
-  max: int = const 1000;
-  one: int = const 1;
-.loop:
-  cond: bool = lt i size;
-  br cond .body .done;
-.body:
-  val: int = fncall rand rng max;
-  loc: ptr<int> = ptradd arr i;
-  store loc val;
-.loop_end:
-  i: int = add i one;
-  jmp .loop;
-.done:
-  ret arr;
-}
+
 
 # Prints an array
 @printarray(size: int, arr: ptr<int>) {
@@ -111,9 +74,47 @@
   rng: ptr<int> = alloc one;
   store rng seed;
   sqsize: int = mul size size;
-  arr1: ptr<int> = call @randarray sqsize rng;
-  arr2: ptr<int> = call @randarray sqsize rng;
-  dest: ptr<int> = call @randarray sqsize rng;
+  randarray : fun<int, ptr<int>>, <ptr<int>> = anon(size, rng) 
+    {
+      arr: ptr<int> = alloc size;
+      # Use a linear congruential generator to generate random numbers.
+      # `seq` is the state of the random number generator.
+      # Returns a value between 0 and max
+      rand: fun <ptr<int>, int>>, <int> = anon(seq, max) {
+        a: int = const 25214903917;
+        c: int = const 11;
+        m: int = const 281474976710656;
+        x: int = load seq;
+        ax: int = mul a x;
+        axpc: int = add ax c;
+        next: int = div axpc m;
+        next: int = mul next m;
+        next: int = sub axpc next;
+        store seq next;
+        val: int = div next max;
+        val: int = mul val max;
+        val: int = sub next val;
+        ret val;
+      };
+      i: int = const 0;
+      max: int = const 1000;
+      one: int = const 1;
+    .loop:
+      cond: bool = lt i size;
+      br cond .body .done;
+    .body:
+      val: int = apply rand rng max;
+      loc: ptr<int> = ptradd arr i;
+      store loc val;
+    .loop_end:
+      i: int = add i one;
+      jmp .loop;
+    .done:
+      ret arr;
+    }
+  arr1: ptr<int> = apply randarray sqsize rng;
+  arr2: ptr<int> = apply randarray sqsize rng;
+  dest: ptr<int> = apply randarray sqsize rng;
   call @matmul size arr1 arr2 dest;
   call @printarray sqsize arr1;
   call @printarray sqsize arr2;

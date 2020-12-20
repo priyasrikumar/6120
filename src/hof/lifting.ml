@@ -133,9 +133,9 @@ let filter_instrs instrs =
     )
 
 let process_func fn_args blocks =
-  let new_funcs = ref [] in
+  let new_funcs = ref [] in 
   (* process blocks piece by piece *)
-  (List.mapi blocks ~f:(fun i (lbl, block) ->
+  let new_blocks = List.mapi blocks ~f:(fun i (lbl, block) ->
        (lbl, List.filter_map block ~f:(fun instr -> 
             match instr with
             | Anon (dst, typ, args, instrs) -> 
@@ -150,7 +150,6 @@ let process_func fn_args blocks =
                   Some (Option.value_exn (zip typ args) 
                         @ (zip_outer fn_args lst (List.take blocks (i+1))))
               in
-              Format.printf "NOW GLOBBING %s" dst; 
               let new_func = 
                 {
                   name = dst;
@@ -158,30 +157,32 @@ let process_func fn_args blocks =
                   rtyp = get_ret typ;
                   instrs = instrs; 
                 }
-              in Hashtbl.add_exn fn_names ~key:dst ~data:new_func;
-              new_funcs := List.append [new_func] !new_funcs; 
+              in 
+              Hashtbl.add_exn fn_names ~key:dst ~data:new_func;
+              new_funcs := new_func :: !new_funcs;
               None 
-            | Fncall (dst, typ, name, args) when Hashtbl.mem fn_names name -> 
-              Some (Call (Some dst, Some typ, (Hashtbl.find_exn fn_names name).name, args))
-            | _ -> Some (instr)))), !new_funcs)
+            | Fncall (dst, typ, name, Some args) when Hashtbl.mem fn_names name -> 
+              if (List.fold ~init:false args ~f:(fun acc arg -> acc && Hashtbl.mem fn_names arg)) then None
+              else 
+              Some (Call (Some dst, Some typ, (Hashtbl.find_exn fn_names name).name, Some args)) 
+            | _ -> Some (instr))))
+            in new_blocks, !new_funcs 
+
 let process_q (cfg : cfg) = 
   List.iter cfg ~f:(fun cfg_func -> Hashtbl.add_exn fn_names ~key:cfg_func.func.name ~data:cfg_func.func);
   let res = ref [] in 
   let q = Queue.of_list cfg in 
   while (Queue.is_empty q |> not) do 
     let cfg_func = Queue.dequeue_exn q in 
-    let (blocks', extra_funcs) = process_func cfg_func.func.args cfg_func.blocks in 
-    if List.is_empty extra_funcs 
-    then let () = Format.printf "NO EXTRAS" in
-      let fn = Hashtbl.find_exn fn_names cfg_func.func.name in 
-      Format.printf "FOUND %s" cfg_func.func.name;
-      res := {
+    let blocks', new_funcs = process_func cfg_func.func.args cfg_func.blocks in 
+    let fn = Hashtbl.find_exn fn_names cfg_func.func.name in 
+      res := List.append [{
         func = fn ;
         blocks = blocks';
         cfg_succ = cfg_func.cfg_succ;
         cfg_pred = cfg_func.cfg_pred;
-      } :: !res
-    else Queue.enqueue_all q (extract_cfg extra_funcs)
+      }] !res;       
+      Queue.enqueue_all q (extract_cfg new_funcs)
   done; 
   !res 
 

@@ -58,10 +58,10 @@
     ret v15;
   };
   v0: int = id n;
-  sum: int = fncall sumOfSquares v0;
+  sum: int = apply sumOfSquares v0;
   sum: int = id sum;
   v1: int = id n;
-  square: int = fncall squareOfSum v1;
+  square: int = apply squareOfSum v1;
   square: int = id square;
   v2: int = id square;
   v3: int = id sum;
