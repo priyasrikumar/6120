@@ -49,10 +49,16 @@ let rec to_union_typ json : union_typ =
   | `Assoc [("ptr", _)] as rest -> 
     let t = to_ptr_typ rest in 
     Ptx (t) 
-  | `Assoc [("fun",`Assoc [("params", `List ps); ("ret", r)])] -> 
-    let params = if ps = [] then None else Some (List.map to_union_typ ps) in 
-    let ret = if r = `String "" then None else Some (to_union_typ r) in
-    Fun (params, ret)
+  | `Assoc [("fun",`Assoc [])] -> 
+    Fun (None, None)
+  | `Assoc [("fun",`Assoc [("params", `List ps)])] -> 
+    let params = Some (List.map to_union_typ ps) in 
+    Fun (params, None)
+  | `Assoc [("fun",`Assoc [("ret", `List r)])] -> 
+    Fun (None, Some (to_union_typ (List.hd r)))
+  | `Assoc [("fun",`Assoc [("params", `List ps); ("ret", `List r)])] -> 
+    let params = Some (List.map to_union_typ ps) in 
+    Fun (params, Some (to_union_typ (List.hd r)))
   | _ -> raise_invalid_arg "not ok" json
 
 let to_typ_opt = function
@@ -189,9 +195,15 @@ let rec parse_instr json =
         let instrs = json |> member "instrs" |> to_list |> List.map parse_instr in 
         Anon (dst (), union_typ (), (if args = [] then None else Some args), instrs)
       | `String "apply" -> 
+        let dst = match json |> member "dest" with 
+        | `Null -> None 
+        | _ -> Some (dst ()) in 
+        let typ = match json |> member "type" with 
+        | `Null -> None 
+        | _ -> Some (union_typ ())  in 
         let args = json |> member "args" |> to_list |> List.map to_string in 
-        let func = json |> member "func" |> to_string in 
-        Fncall (dst (), union_typ (), func, if args = [] then None else Some args)
+        let func = json |> member "funcs" |> to_list |> List.hd |> to_string in 
+        Fncall (dst, typ, func, if args = [] then None else Some args)
 
       | _ ->
         raise_invalid_arg "Invalid op" json
@@ -267,13 +279,23 @@ let ptr_typ_to_json ptr_typ =
   to_json ptr_typ
 
 let rec fun_typ_to_json (ps, r) = 
-  let ps' = if (Option.is_none ps) |> not 
-    then List.map rev_union_typ (Option.value ps ~default:[]) 
-    else [] in 
-  let r' = if (Option.is_none r) |> not 
-    then rev_union_typ (Option.get r) 
-    else `String "" in 
-  `Assoc [("fun", `Assoc[("params", `List ps'); ("ret", r')])]
+  let res = if Option.is_none r && Option.is_none ps then 
+      `Assoc [("fun", 
+               `Assoc[])]
+    else if Option.is_none ps && Option.is_some r then
+      `Assoc [("fun", 
+               `Assoc[("params", `List (List.map rev_union_typ (Option.get ps)));
+                      ("ret", `List [rev_union_typ (Option.get r)])])]
+    else if Option.is_none r && Option.is_some ps then 
+      `Assoc [("fun",
+               `Assoc [("params", 
+                        `List (List.map rev_union_typ (Option.get ps)))])]
+    else 
+      `Assoc [("fun",
+               `Assoc [("params", 
+                        `List (List.map rev_union_typ (Option.get ps)));
+                       ("ret", `List [rev_union_typ (Option.get r)])])]
+  in res 
 
 and rev_union_typ = function 
   | Val v -> rev_typ v 
@@ -444,7 +466,7 @@ let rec instr_to_json instr =
         ("type", rev_union_typ typ) ;
         ("instrs", `List (List.map instr_to_json instrs))
       ]
-    | Fncall (d, typ, name, Some args) -> 
+    | Fncall (Some d, Some typ, name, Some args) -> 
       [
         ("args", to_args args) ;
         ("dest", `String (d)) ;
@@ -452,14 +474,25 @@ let rec instr_to_json instr =
         ("op", `String "apply") ;
         ("type", typ |> rev_union_typ) 
       ]
-    | Fncall (d, typ, name, None) -> 
+    | Fncall (Some d, Some typ, name, None) -> 
       [ 
         ("dest", `String (d)) ;
         ("func", `String name) ;
         ("op", `String "apply") ;
         ("type", typ |> rev_union_typ) 
       ]
-      (*| instr -> failwith ("unimplemented : "^show_instr (instr))*)
+      | Fncall (None, None, name, Some args) -> 
+      [
+        ("args", to_args args) ;
+        ("func", `String name) ;
+        ("op", `String "apply") ;
+      ]
+    | Fncall (None, None, name, None) -> 
+      [ 
+        ("func", `String name) ;
+        ("op", `String "apply") ;
+      ]
+      | instr -> failwith ("unimplemented or illegal : "^show_instr (instr))
   in
   `Assoc assoc
 

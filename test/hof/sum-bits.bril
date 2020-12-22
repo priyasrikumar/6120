@@ -1,0 +1,24 @@
+# ARGS: 42
+@main(input : int) {
+  sum : int = const 0;
+  two : int = const 2;
+  zero : int = const 0;
+.loop:
+  cond : bool = eq input zero;
+  br cond .done .body;
+.body:
+  mod: fun <int, int>, <int> = anon(dividend, divisor) {
+  quotient : int = div dividend divisor;
+  two : int = const 2;
+  prod : int = mul two quotient;
+  diff : int = sub dividend prod;
+  ret diff;
+};
+  bit : int = apply mod input two;
+  input : int = div input two;
+  sum : int = add sum bit;
+  jmp .loop;
+.done:
+  print sum;
+  ret;
+}

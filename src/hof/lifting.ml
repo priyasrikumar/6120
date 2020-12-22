@@ -65,11 +65,14 @@ let free_vars func_args instrs =
         Hash_set.add decl_vars dst
       | Anon (dst, _, None, _) ->
         Hash_set.add decl_vars dst
-      | Fncall (dst, _, _, Some args) ->
+      | Fncall (Some dst, _, _, Some args) ->
         process_args args;
         Hash_set.add decl_vars dst
-      | Fncall (dst, _, _, None) ->
-        Hash_set.add decl_vars dst);
+      | Fncall (Some dst, _, _, None) ->
+        Hash_set.add decl_vars dst
+      | Fncall (None, _, _, Some args) -> 
+        process_args args;
+      | Fncall (None, _, _, None) -> ());
   Hash_set.to_list free_vars
 
 (* do this later...
@@ -116,7 +119,7 @@ let zip_outer fn_args lst blocks =
               | Call (Some dst, Some typ, _, _) 
               | Phi (dst, typ, _) 
               | Anon (dst, typ, _, _)
-              | Fncall (dst, typ, _, _) when String.equal dst name -> 
+              | Fncall (Some dst, Some typ, _, _) when String.equal dst name -> 
                 Some (dst, typ)
               | Alloc (dst, typ, _) 
               | Load (dst, typ, _) 
@@ -164,7 +167,7 @@ let process_func fn_args blocks =
             | Fncall (dst, typ, name, Some args) when Hashtbl.mem fn_names name -> 
               if (List.fold ~init:false args ~f:(fun acc arg -> acc && Hashtbl.mem fn_names arg)) then None
               else 
-              Some (Call (Some dst, Some typ, (Hashtbl.find_exn fn_names name).name, Some args)) 
+              Some (Call (dst, typ, (Hashtbl.find_exn fn_names name).name, Some args)) 
             | _ -> Some (instr))))
             in new_blocks, !new_funcs 
 

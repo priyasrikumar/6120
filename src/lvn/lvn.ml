@@ -273,17 +273,22 @@ let lvn_block block =
         let new_exp = Un (Id, new_val) in
         update_tbls (new_val, new_exp, dst);
         instr
-      | Fncall (dst, typ, name, Some args) -> 
-        let instr' = Fncall ((dst), typ, name, Some (List.map args ~f:get_correct_call_arg)) in
+      | Fncall (Some dst, typ, name, Some args) -> 
+        let instr' = Fncall ((Some dst), typ, name, Some (List.map args ~f:get_correct_call_arg)) in
         let new_val = new_val () in
         let new_exp = Un (Id, new_val) in
         update_tbls (new_val, new_exp, dst);
         instr'
-      | Fncall (dst, _, _, None) ->
+      | Fncall (Some dst, _, _, None) ->
         let new_val = new_val () in
         let new_exp = Un (Id, new_val) in
         update_tbls (new_val, new_exp, dst);
-        instr)
+        instr
+      | Fncall (None, _, name, Some args) -> 
+        let instr' =
+          Fncall (None, None, name, Some (List.map args ~f:get_correct_call_arg)) in
+        instr'
+      | Fncall (None, _, _, None) -> instr)
 
 let lvn cfg =
   List.map cfg ~f:(fun cfg_func ->

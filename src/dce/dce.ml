@@ -69,10 +69,10 @@ let get_var instr =
   | Unop (d, _, _, _) | Call (Some d,_, _, _)
   | Alloc (d, _, _) | Load (d, _, _)
   | Ptradd (d, _, _, _) | Ptrcpy (d, _, _) 
-  | Anon (d, _, _, _) | Fncall (d, _, _, _) -> Some (d)
+  | Anon (d, _, _, _) | Fncall (Some d, _, _, _) -> Some (d)
   | Label _| Jmp (_) | Br (_, _ , _ ) | Ret (_) | Print (_)
   | Call (None, _, _, _)| Nop -> None | Phi (_, _, _)
-  | Free (_) | Store (_, _) -> None
+  | Free (_) | Store (_, _) | Fncall (None, _, _, _) -> None
 
 let filter_instrs used_vars cfg_func =
   let is_deleted = ref false in 
@@ -123,8 +123,9 @@ let local_elim_instrs instrs =
       | Ptradd (dst, _, arg1, arg2) -> [arg1; arg2], Some (dst)
       | Ptrcpy (dst, _, arg) -> [arg], Some (dst)
       | Anon (dst, _, _, _) -> [], Some dst
-      | Fncall (dst, _, name, Some args) -> name :: args, Some dst
-      | Fncall (dst, _, name, None) -> [name], Some dst
+      | Fncall (dst, _, name, Some args) -> name :: args, dst
+      | Fncall (dst, _, name, None) -> [name], dst
+      
     in
     (* remove uses *)
     List.iter uses ~f:(Hashtbl.remove last_def);

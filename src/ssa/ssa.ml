@@ -59,9 +59,10 @@ let vars_of_process_defs lbl defs block =
       | Anon (dst, typ, _, _) -> 
         update_defs dst lbl defs; 
         (dst, typ) :: acc
-      | Fncall (dst, typ, _, _) -> 
+      | Fncall (Some dst, Some typ, _, _) -> 
         update_defs dst lbl defs; 
         (dst, typ) :: acc
+      | Fncall (_, _, _, _) -> acc
     ) 
 
 let insert_nodes func_name func_args blocks df =
@@ -173,11 +174,17 @@ let update_instrs stack counters block =
         Anon (process_dst dst, typ, Some args, instrs)
       | Anon (dst, typ, None, instrs) -> 
         Anon (process_dst dst, typ, None, instrs)
-      | Fncall (dst, typ, name, Some args) ->
+      | Fncall (Some dst, typ, name, Some args) ->
         let args' = List.map (args) ~f:process_arg in 
-        Fncall ((process_dst dst), typ, process_arg name, Some args')
-      | Fncall (dst, typ, name, None) -> 
-        Fncall ((process_dst dst), typ, process_arg name, None))
+        Fncall (Some (process_dst dst), typ, process_arg name, Some args')
+      | Fncall (Some dst, typ, name, None) -> 
+        Fncall (Some (process_dst dst), typ, process_arg name, None)
+      | Fncall (None, _, name, Some args) -> 
+              let args' = List.map (args) ~f:process_arg in 
+              Fncall (None, None, process_arg name, Some args')
+      | Fncall (None, _, name, None) -> 
+              Fncall (None, None, process_arg name, None))
+
   in
   block'
 

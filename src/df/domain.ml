@@ -62,7 +62,7 @@ module ReachingDomain : Domain = struct
     | Ptradd (dst, _, _, _)
     | Ptrcpy (dst, _, _)
     | Anon (dst, _, _, _)
-    | Fncall (dst, _, _, _) ->    
+    | Fncall (Some dst, _, _, _) ->    
       Hashtbl.update t' dst ~f:(function
           | None -> [instr]
           | Some _ -> [instr]); t'
@@ -76,6 +76,7 @@ module ReachingDomain : Domain = struct
     | Phi (_, _, _)
     | Free _ 
     | Store (_, _)
+    | Fncall (_, _, _, _)
       -> t'
 
   let get_result t = Reaching (Hashtbl.to_alist t)
@@ -151,12 +152,16 @@ module LiveVarsDomain : Domain = struct
         Hash_set.remove t' dst
       | Anon (dst, _, None, _) -> 
         Hash_set.remove t' dst
-      | Fncall (dst, _, name, Some (args)) -> 
+      | Fncall (Some dst, _, name, Some (args)) -> 
         List.iter (name :: args) ~f:(Hash_set.add t');
         Hash_set.remove t' dst 
-      | Fncall (dst, _, name, None) -> 
-        Hash_set.add t' name; 
+      | Fncall (Some dst, _, name, None) -> 
+        Hash_set.add t' name;
         Hash_set.remove t' dst
+      | Fncall (None, _, name, Some (args)) -> 
+        List.iter (name :: args) ~f:(Hash_set.add t')
+      | Fncall (None, _, name, None) -> 
+        Hash_set.add t' name
     end; t'
 
   let get_result t = LiveVars (Hash_set.to_list t)
@@ -333,12 +338,16 @@ module ConstantPropDomain : Domain = struct
         Hashtbl.update t' dst ~f:(fun _ -> Bot)
       | Anon (dst, _, None, _) -> 
         Hashtbl.update t' dst ~f:(fun _ -> Bot)
-      | Fncall (dst, _, name, Some args) ->
+      | Fncall (Some dst, _, name, Some args) ->
         process_args t' (name :: args);
         Hashtbl.update t' dst ~f:(fun _ -> Top)
-      | Fncall (dst, _, name, None) ->
+      | Fncall (Some dst, _, name, None) ->
         process_args t' [name];
         Hashtbl.update t' dst ~f:(fun _ -> Top)
+      | Fncall (None, _, name, Some args) ->
+        process_args t' (name :: args);
+      | Fncall (None, _, name, None) ->
+        process_args t' [name];
     end; t'
 
   let get_result t = ConstProp(

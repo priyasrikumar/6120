@@ -70,7 +70,7 @@ type instr =
   | Ptradd of dst * ptr_typ * arg * arg
   | Ptrcpy of dst * ptr_typ * arg
   | Anon of dst * union_typ * arg list option * instr list 
-  | Fncall of dst * union_typ * string * arg list option
+  | Fncall of dst option * union_typ option * string * arg list option
 [@@deriving show, eq, sexp]
 
 type func = {

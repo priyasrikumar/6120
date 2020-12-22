@@ -80,7 +80,7 @@
       # Use a linear congruential generator to generate random numbers.
       # `seq` is the state of the random number generator.
       # Returns a value between 0 and max
-      rand: fun <ptr<int>, int>>, <int> = anon(seq, max) {
+      rand: fun <ptr<int>, int>, <int> = anon(seq, max) {
         a: int = const 25214903917;
         c: int = const 11;
         m: int = const 281474976710656;
@@ -111,7 +111,7 @@
       jmp .loop;
     .done:
       ret arr;
-    }
+    };
   arr1: ptr<int> = apply randarray sqsize rng;
   arr2: ptr<int> = apply randarray sqsize rng;
   dest: ptr<int> = apply randarray sqsize rng;
